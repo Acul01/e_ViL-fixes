@@ -146,9 +146,16 @@ FIELDNAMES would be keys in the dict returned by load_obj_tsv.
 """
 
 
-class eViLTorchDataset(Dataset):
+class eViLTorchDataset(Dataset):    
     def __init__(self, args, dataset: eViLDataset, model="lxmert", max_length=50):
-
+        self.args = args
+        self.raw_dataset = dataset
+        self.task = getattr(args, 'task', None)
+        if not self.task:
+            self.task = getattr(dataset, 'task', '')
+        self.task = str(self.task).lower()
+        assert self.task in {'vqax', 'esnlive', 'vcr'}, f"missing or invalid task: {self.task}"
+        
         super().__init__()
         self.raw_dataset = dataset
         self.model = model
@@ -189,18 +196,41 @@ class eViLTorchDataset(Dataset):
             if self.task == "esnlive":
                 img_path = FLICKR30KDB
                 nbb_path = FLICKR30KDB_NBB
+                # nur ESNLIVE: LMDB öffnen
+                self.env = lmdb.open(img_path, readonly=True, create=False, readahead=True)
+                self.txn = self.env.begin(buffers=True)
+                self.name2nbb = json.load(open(nbb_path))
+
             elif self.task == "vcr":
+                # VCR: LMDB öffnen
                 if "_train_" in self.raw_dataset.splits[0]:
                     img_path, nbb_path = vcr_path("train")
                 elif "_dev_" in self.raw_dataset.splits[0]:
                     img_path, nbb_path = vcr_path("train")
                 else:
                     img_path, nbb_path = vcr_path("val")
-            self.env = lmdb.open(
-                img_path, readonly=True, create=False, readahead=not False
-            )
-            self.txn = self.env.begin(buffers=True)
-            self.name2nbb = json.load(open(nbb_path))
+                self.env = lmdb.open(img_path, readonly=True, create=False, readahead=True)
+                self.txn = self.env.begin(buffers=True)
+                self.name2nbb = json.load(open(nbb_path))
+
+            elif self.task == "vqax":
+                # VQA-X: TSV–Features statt LMDB
+                split_attr = getattr(self.raw_dataset, "splits", None)
+                split_str = (" ".join(map(str, split_attr)) if isinstance(split_attr,(list,tuple)) else str(split_attr or "")).lower()
+                if "train" in split_str:
+                    tsv_file = "train2014_obj36.tsv"
+                elif "val" in split_str or "valid" in split_str or "dev" in split_str:
+                    tsv_file = "val2014_obj36.tsv"
+                elif "test" in split_str or "test2015" in split_str:
+                    tsv_file = "test2015_obj36.tsv"
+                else:
+                    tsv_file = "val2014_obj36.tsv"  # Fallback für Smoke-Test
+
+                img_path = os.path.join(self.args.bb_path, tsv_file)
+                assert os.path.exists(img_path), f"Feature-TSV nicht gefunden: {img_path}"
+                # Öffnen/Parsen der TSVs passiert in den vqax-spezifischen Loader-Funktionen weiter unten
+            else:
+                raise ValueError(f"Unbekannte task '{self.task}'. Erwartet: esnlive | vcr | vqax")
 
     def __len__(self):
         if self.task == "vqa_x":

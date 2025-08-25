@@ -199,8 +199,8 @@ class VQA:
         self.model = eUGModel(self.train_type, num_answers, self.dtype, args.model)
 
         # Load pre-trained weights
-        if self.train_type == "expl" and args.bb_path is not None:
-            self.model.load_state_dict(torch.load(args.bb_path))
+        if self.train_type == "expl" and args.BBPath is not None:
+            self.model.load_state_dict(torch.load(args.BBPath))
             # freeze backbone
             for p, n in self.model.named_parameters():
                 if "decoder.model.transformer" not in p:
@@ -798,6 +798,12 @@ if __name__ == "__main__":
     log_str += f"\n Process ID: {os.getpid()}"
     print_log(args, log_str)
 
+    # in eUG.py – kurz VOR vqa = VQA()
+    try:
+        print("ARGS DEBUG:", {k: getattr(args, k) for k in dir(args) if not k.startswith('_')})
+    except Exception as e:
+        print("ARGS DEBUG FAILED:", e)
+    
     # Build Class
     vqa = VQA()
 

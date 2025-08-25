@@ -23,8 +23,28 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 import torch
 import torch.nn as nn
 from transformers import GPT2PreTrainedModel  # class to handle weights initialization
-from transformers.modeling_bert import BertLayerNorm as LayerNorm
-from transformers.modeling_gpt2 import Block
+
+### IMPORT FIX
+try:
+    # Alt (Transformers 2/3)
+    from transformers.modeling_bert import BertLayerNorm as _BertLayerNorm
+    LayerNorm = _BertLayerNorm
+except Exception:
+    # Neu (Transformers 4.x): es gibt kein BertLayerNorm mehr
+    from torch.nn import LayerNorm  # use torch’s LayerNorm
+
+### IMPORT FIX
+# --- GPT2 imports (legacy vs v4) ---
+try:
+    # Transformers 2/3.x
+    from transformers.modeling_gpt2 import Block as GPT2Block, GPT2LMHeadModel, GPT2Config
+    from transformers.tokenization_gpt2 import GPT2Tokenizer
+    Block = GPT2Block  # optional alias, falls im Code 'Block' verwendet wird
+except Exception:
+    # Transformers 4.x
+    from transformers.models.gpt2.modeling_gpt2 import GPT2Block, GPT2LMHeadModel, GPT2Config
+    from transformers.models.gpt2.tokenization_gpt2 import GPT2Tokenizer
+    Block = GPT2Block  # alias für Alt-Code
 
 
 class GPT2VisionAttentiveTransformer(GPT2PreTrainedModel):
