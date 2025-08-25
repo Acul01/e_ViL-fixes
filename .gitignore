@@ -1,6 +1,9 @@
+# Daten & Features (groß, nicht ins Repo!)
 data/
 experiments/
 **/*.tsv
 *.zip
+
+# Python Cache & Jupyter
 __pycache__/
 .ipynb_checkpoints/
