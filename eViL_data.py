@@ -153,6 +153,10 @@ FIELDNAMES would be keys in the dict returned by load_obj_tsv.
 
 class eViLTorchDataset(Dataset):    
     def __init__(self, args, dataset: eViLDataset, model="lxmert", max_length=50):
+        # Warnung und Fallback für DataLoader-Worker bei vqax
+        if hasattr(args, "task") and str(args.task).lower() == "vqax" and hasattr(args, "num_workers") and args.num_workers != 0:
+            print("[WARN] Für vqax und großes Feature-Caching sollte num_workers=0 gesetzt werden, um Speicherprobleme zu vermeiden! Setze automatisch num_workers=0.")
+            args.num_workers = 0
         self.args = args
         self.raw_dataset = dataset
         self.task = getattr(args, 'task', None)
