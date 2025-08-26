@@ -117,6 +117,11 @@ class eViLDataset:
             self.label2ans = json.load(open("data/trainval_label2ans.json"))
             assert len(self.ans2label) == len(self.label2ans)
 
+        elif self.task == "vqax":
+            self.ans2label = json.load(open("data/trainval_ans2label.json"))
+            self.label2ans = json.load(open("data/trainval_label2ans.json"))
+            assert len(self.ans2label) == len(self.label2ans)
+
         elif self.task == "esnlive":
             self.ans2label = {"contradiction": 0, "neutral": 1, "entailment": 2}
             self.label2ans = {0: "contradiction", 1: "neutral", 2: "entailment"}
