@@ -336,7 +336,7 @@ class eViLTorchDataset(Dataset):
             with open(tsv_path, "r") as f:
                 reader = csv.DictReader(f, delimiter='\t')
                 for row in reader:
-                    if row["img_id"] == img_id:
+                    if row["image_id"] == img_id:
                         import base64
                         import numpy as np
                         num_boxes = int(row["num_boxes"])
