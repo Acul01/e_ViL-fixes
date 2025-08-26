@@ -159,7 +159,7 @@ def parse_args():
 
     # Training configuration
     parser.add_argument("--multiGPU", action="store_const", default=False, const=True)
-    parser.add_argument("--numWorkers", dest="num_workers", default=0)
+    parser.add_argument("--numWorkers", dest="num_workers", type=int, default=0)
     parser.add_argument("--device", dest="device", default="cpu")
 
     # Parse the arguments.
