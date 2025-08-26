@@ -314,31 +314,33 @@ class eViLTorchDataset(Dataset):
             boxes[:, 4] = img_bb[:, 5]
             boxes[:, 6] = boxes[:, 4] * boxes[:, 5]
         elif self.task == "vqax":
-            # Features aus TSV laden (index-based access, no header)
-            import csv
-            csv.field_size_limit(100000000)
-            tsv_file = None
-            split_attr = getattr(self.raw_dataset, "splits", None)
-            split_str = (" ".join(map(str, split_attr)) if isinstance(split_attr,(list,tuple)) else str(split_attr or "")).lower()
-            if "train" in split_str:
-                tsv_file = "train2014_obj36.tsv"
-            elif "val" in split_str or "valid" in split_str or "dev" in split_str:
-                tsv_file = "val2014_obj36.tsv"
-            elif "test" in split_str or "test2015" in split_str:
-                tsv_file = "test2015_obj36.tsv"
-            else:
-                tsv_file = "val2014_obj36.tsv"
-            tsv_path = os.path.join(self.args.bb_path, tsv_file)
-            feats = None
-            boxes = None
-            with open(tsv_path, "r") as f:
-                reader = csv.reader(f, delimiter='\t')
-                for row in reader:
-                    if row[0] == img_id:
+            # Features aus TSV einmalig in RAM laden (img_id → (boxes, feats))
+            if not hasattr(self, "_vqax_feat_cache"):
+                import csv
+                csv.field_size_limit(100000000)
+                tsv_file = None
+                split_attr = getattr(self.raw_dataset, "splits", None)
+                split_str = (" ".join(map(str, split_attr)) if isinstance(split_attr,(list,tuple)) else str(split_attr or "")).lower()
+                if "train" in split_str:
+                    tsv_file = "train2014_obj36.tsv"
+                elif "val" in split_str or "valid" in split_str or "dev" in split_str:
+                    tsv_file = "val2014_obj36.tsv"
+                elif "test" in split_str or "test2015" in split_str:
+                    tsv_file = "test2015_obj36.tsv"
+                else:
+                    tsv_file = "val2014_obj36.tsv"
+                tsv_path = os.path.join(self.args.bb_path, tsv_file)
+                self._vqax_feat_cache = {}
+                with open(tsv_path, "r") as f:
+                    reader = csv.reader(f, delimiter='\t')
+                    for row in reader:
+                        img_id_row = row[0]
                         num_boxes = int(row[7])
                         boxes = np.frombuffer(base64.b64decode(row[8]), dtype=np.float32).reshape(num_boxes, -1)
                         feats = np.frombuffer(base64.b64decode(row[9]), dtype=np.float32).reshape(num_boxes, -1)
-                        break
+                        self._vqax_feat_cache[img_id_row] = (boxes, feats)
+            # Lookup aus RAM
+            boxes, feats = self._vqax_feat_cache.get(img_id, (None, None))
             if feats is None or boxes is None:
                 # Fallback: Dummy-Werte
                 feats = np.zeros((36, 2048), dtype="float32")
