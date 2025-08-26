@@ -59,7 +59,7 @@ class GPT2VisionAttentiveTransformer(GPT2PreTrainedModel):
 
         self.drop = nn.Dropout(config.embd_pdrop)
         self.h = nn.ModuleList(
-            [Block(config.n_ctx, config, scale=True) for _ in range(config.n_layer)]
+            [Block(config.n_ctx, config) for _ in range(config.n_layer)]
         )
         self.ln_f = LayerNorm(config.n_embd, eps=config.layer_norm_epsilon)
 
