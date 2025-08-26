@@ -365,8 +365,12 @@ class eViLTorchDataset(Dataset):
             elif self.task == "vcr":
                 target = torch.zeros(self.raw_dataset.num_answers).int()
                 target[label] = 1
+            elif self.task == "vqax":
+                # Fallback: target als Nullvektor
+                target = torch.zeros(self.raw_dataset.num_answers)
             else:
                 print("Task not defined")
+                target = None
 
             if "explanation" in datum:
                 # get multiple expl for validatin of vqa-x, else just one
@@ -376,9 +380,7 @@ class eViLTorchDataset(Dataset):
                     expl = datum["explanation"][0]
                 else:
                     if "train" in self.raw_dataset.splits[0]:
-                        expl = datum["explanation"][
-                            0
-                        ]  # we only consider the first explanation for training
+                        expl = datum["explanation"][0]  # we only consider the first explanation for training
                     else:
                         expl = datum["explanation"]
                 if "answer_choices" in datum:  # required for conditioning explanations
