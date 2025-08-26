@@ -313,7 +313,39 @@ class eViLTorchDataset(Dataset):
             boxes[:, 5] = img_bb[:, 4]
             boxes[:, 4] = img_bb[:, 5]
             boxes[:, 6] = boxes[:, 4] * boxes[:, 5]
-        # Für vqax: Features werden an anderer Stelle geladen/übergeben
+        elif self.task == "vqax":
+            # Features aus TSV laden
+            # Annahme: TSV wurde beim __init__ geöffnet und img_id->Zeile gemappt
+            # Fallback: TSV bei jedem Zugriff öffnen und Zeile suchen
+            import csv
+            tsv_file = None
+            split_attr = getattr(self.raw_dataset, "splits", None)
+            split_str = (" ".join(map(str, split_attr)) if isinstance(split_attr,(list,tuple)) else str(split_attr or "")).lower()
+            if "train" in split_str:
+                tsv_file = "train2014_obj36.tsv"
+            elif "val" in split_str or "valid" in split_str or "dev" in split_str:
+                tsv_file = "val2014_obj36.tsv"
+            elif "test" in split_str or "test2015" in split_str:
+                tsv_file = "test2015_obj36.tsv"
+            else:
+                tsv_file = "val2014_obj36.tsv"
+            tsv_path = os.path.join(self.args.bb_path, tsv_file)
+            feats = None
+            boxes = None
+            with open(tsv_path, "r") as f:
+                reader = csv.DictReader(f, delimiter='\t')
+                for row in reader:
+                    if row["img_id"] == img_id:
+                        import base64
+                        import numpy as np
+                        num_boxes = int(row["num_boxes"])
+                        feats = np.frombuffer(base64.b64decode(row["features"]), dtype=np.float32).reshape(num_boxes, -1)
+                        boxes = np.frombuffer(base64.b64decode(row["boxes"]), dtype=np.float32).reshape(num_boxes, -1)
+                        break
+            if feats is None or boxes is None:
+                # Fallback: Dummy-Werte
+                feats = np.zeros((36, 2048), dtype="float32")
+                boxes = np.zeros((36, 4), dtype="float32")
 
         if "label" in datum:
             label = datum["label"]
