@@ -331,14 +331,18 @@ class eViLTorchDataset(Dataset):
                     tsv_file = "val2014_obj36.tsv"
                 tsv_path = os.path.join(self.args.bb_path, tsv_file)
                 self._vqax_feat_cache = {}
+                print(f"[VQAX] Lade TSV-Features in RAM: {tsv_file}")
                 with open(tsv_path, "r") as f:
                     reader = csv.reader(f, delimiter='\t')
-                    for row in reader:
+                    for i, row in enumerate(reader):
                         img_id_row = row[0]
                         num_boxes = int(row[7])
                         boxes = np.frombuffer(base64.b64decode(row[8]), dtype=np.float32).reshape(num_boxes, -1)
                         feats = np.frombuffer(base64.b64decode(row[9]), dtype=np.float32).reshape(num_boxes, -1)
                         self._vqax_feat_cache[img_id_row] = (boxes, feats)
+                        if (i+1) % 10000 == 0:
+                            print(f"[VQAX] ... {i+1} Zeilen geladen")
+                print(f"[VQAX] TSV-Feature-Caching abgeschlossen. Gesamt: {i+1} Zeilen.")
             # Lookup aus RAM
             boxes, feats = self._vqax_feat_cache.get(img_id, (None, None))
             if feats is None or boxes is None:
