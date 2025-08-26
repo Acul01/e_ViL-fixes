@@ -314,9 +314,7 @@ class eViLTorchDataset(Dataset):
             boxes[:, 4] = img_bb[:, 5]
             boxes[:, 6] = boxes[:, 4] * boxes[:, 5]
         elif self.task == "vqax":
-            # Features aus TSV laden
-            # Annahme: TSV wurde beim __init__ geöffnet und img_id->Zeile gemappt
-            # Fallback: TSV bei jedem Zugriff öffnen und Zeile suchen
+            # Features aus TSV laden (index-based access, no header)
             import csv
             csv.field_size_limit(100000000)
             tsv_file = None
@@ -334,14 +332,12 @@ class eViLTorchDataset(Dataset):
             feats = None
             boxes = None
             with open(tsv_path, "r") as f:
-                reader = csv.DictReader(f, delimiter='\t')
+                reader = csv.reader(f, delimiter='\t')
                 for row in reader:
-                    if row["image_id"] == img_id:
-                        import base64
-                        import numpy as np
-                        num_boxes = int(row["num_boxes"])
-                        feats = np.frombuffer(base64.b64decode(row["features"]), dtype=np.float32).reshape(num_boxes, -1)
-                        boxes = np.frombuffer(base64.b64decode(row["boxes"]), dtype=np.float32).reshape(num_boxes, -1)
+                    if row[0] == img_id:
+                        num_boxes = int(row[7])
+                        boxes = np.frombuffer(base64.b64decode(row[8]), dtype=np.float32).reshape(num_boxes, -1)
+                        feats = np.frombuffer(base64.b64decode(row[9]), dtype=np.float32).reshape(num_boxes, -1)
                         break
             if feats is None or boxes is None:
                 # Fallback: Dummy-Werte
