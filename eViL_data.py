@@ -353,6 +353,9 @@ class eViLTorchDataset(Dataset):
                 # Fallback: Dummy-Werte
                 feats = np.zeros((36, 2048), dtype="float32")
                 boxes = np.zeros((36, 4), dtype="float32")
+            # UNITER erwartet 7 Box-Features pro Box
+            if self.model == "uniter":
+                boxes = self._uniterBoxes(boxes)
 
         if "label" in datum:
             label = datum["label"]
