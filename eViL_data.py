@@ -318,6 +318,7 @@ class eViLTorchDataset(Dataset):
             # Annahme: TSV wurde beim __init__ geöffnet und img_id->Zeile gemappt
             # Fallback: TSV bei jedem Zugriff öffnen und Zeile suchen
             import csv
+            csv.field_size_limit(100000000)
             tsv_file = None
             split_attr = getattr(self.raw_dataset, "splits", None)
             split_str = (" ".join(map(str, split_attr)) if isinstance(split_attr,(list,tuple)) else str(split_attr or "")).lower()
