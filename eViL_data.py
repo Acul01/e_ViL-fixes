@@ -299,8 +299,7 @@ class eViLTorchDataset(Dataset):
                 np.testing.assert_array_less(boxes, 1 + 1e-5)
                 np.testing.assert_array_less(-boxes, 0 + 1e-5)
 
-        else:
-
+        elif self.task in ["esnlive", "vcr"]:
             dump = self.txn.get(img_id.encode("utf-8"))
             nbb = self.name2nbb[img_id]
             img_dump = msgpack.loads(dump, raw=False)
@@ -314,6 +313,7 @@ class eViLTorchDataset(Dataset):
             boxes[:, 5] = img_bb[:, 4]
             boxes[:, 4] = img_bb[:, 5]
             boxes[:, 6] = boxes[:, 4] * boxes[:, 5]
+        # Für vqax: Features werden an anderer Stelle geladen/übergeben
 
         if "label" in datum:
             label = datum["label"]
