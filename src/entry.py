@@ -179,14 +179,19 @@ def preprocess_gpt2(
     score, label = logit.max(1)
 
     # get textual representation of answer
-    if isinstance(label_dict[0], list):  # vcr
+    try:
+        _ = label_dict[0]
+        is_vcr = True
+    except (KeyError, TypeError):
+        is_vcr = False
+
+    if is_vcr:
         for idx, l in enumerate(label.cpu().numpy()):
             answers.append(label_dict[idx][l])
-        max_answer_length = 23
-    else:  # esnlive and vqa_x
+    else:
         for l in label.cpu().numpy():
             answers.append(label_dict[l])
-        max_answer_length = 23
+    max_answer_length = 23
 
     block_size = (
         max_rationale_length + max_question_length + max_answer_length + uniter_dim + 1
