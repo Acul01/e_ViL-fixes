@@ -185,11 +185,6 @@ def preprocess_gpt2(
     except (KeyError, TypeError):
         is_vcr = False
 
-    print("[preprocess_gpt2] label_dict type:", type(label_dict))
-    if isinstance(label_dict, dict):
-        print("[preprocess_gpt2] label_dict keys:", list(label_dict.keys())[:10])
-    print("[preprocess_gpt2] label values:", label.cpu().numpy())
-
     if is_vcr:
         for idx, l in enumerate(label.cpu().numpy()):
             answers.append(label_dict[idx][l])
