@@ -566,6 +566,8 @@ class VQA:
                         quesid2ans[qid] = ans
                 else:
                     for qid, l in zip(ques_id, label.cpu().numpy()):
+                        print("label2ans keys:", list(dset.label2ans.keys())[:10], "...", list(dset.label2ans.keys())[-10:])
+                        print("l:", l)
                         ans = dset.label2ans[l]
                         quesid2ans[qid] = ans
 
