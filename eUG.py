@@ -357,16 +357,22 @@ class VQA:
                         ans = dset.label2ans[qid][l]
                         quesid2ans[qid] = ans
                 else:
+                    missing_labels = getattr(self, "_missing_labels", set())
                     for qid, l in zip(ques_id, label.cpu().numpy()):
                         if l not in dset.label2ans:
-                            print(f"[DEBUG] KeyError: l={l} not in label2ans. Available keys (first 10): {list(dset.label2ans.keys())[:10]}")
+                            missing_labels.add(l)
                         ans = dset.label2ans.get(l, f"UNK_{l}")
                         quesid2ans[qid] = ans
+                    self._missing_labels = missing_labels
 
                 t_loss += float(loss) * self.grad_accum
                 tt_loss += float(task_loss)
                 te_loss += float(expl_loss)
                 step_per_eval += 1
+
+        # Am Ende: fehlende Labels gesammelt ausgeben
+        if hasattr(self, "_missing_labels") and self._missing_labels:
+            print(f"[DEBUG] Fehlende Labels im Mapping (gesamt): {sorted(list(self._missing_labels))}")
 
                 # global step
                 # grad accum snippet: https://gist.github.com/thomwolf/ac7a7da6b1888c2eeac8ac8b9b05d3d3
