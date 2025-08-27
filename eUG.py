@@ -375,9 +375,9 @@ class VQA:
             print(f"[DEBUG] Fehlende Labels im Mapping (gesamt): {sorted(list(self._missing_labels))}")
 
         # global step
+
         # grad accum snippet: https://gist.github.com/thomwolf/ac7a7da6b1888c2eeac8ac8b9b05d3d3
         if (i + 1) % self.grad_accum == 0:
-
             nn.utils.clip_grad_norm_(self.model.parameters(), 5.0)
             self.optim.step()
             if args.optim != "bert":
@@ -386,92 +386,69 @@ class VQA:
             # logging
             tb_writer.add_scalar("task loss", task_loss, global_step)
             tb_writer.add_scalar("explanation loss", expl_loss, global_step)
-            tb_writer.add_scalar(
-                "total loss", float(loss) * self.grad_accum, global_step
-                    )
-                    if self.train_type == "all":
-                        tb_writer.add_scalar(
-                            "task weight", loss_weights["task"], global_step
-                        )
-                        tb_writer.add_scalar(
-                            "explanation weight", loss_weights["expl"], global_step
-                        )
+            tb_writer.add_scalar("total loss", float(loss) * self.grad_accum, global_step)
+            if self.train_type == "all":
+                tb_writer.add_scalar("task weight", loss_weights["task"], global_step)
+                tb_writer.add_scalar("explanation weight", loss_weights["expl"], global_step)
 
-                    global_step += 1
+            global_step += 1
 
-                    # do eval
-                    if self.save_steps > 0 and global_step % self.save_steps == 0:
-                        log_str = f"\n\n{ctime()} || EVALUATION TIME"
-                        log_str += f"\nEpoch-step {epoch}-{global_step}: Loss {t_loss/step_per_eval:.2f} | Task loss {tt_loss/step_per_eval:.2f} | Expl loss {te_loss/step_per_eval:.2f} | Train acc {evaluator.evaluate(quesid2ans)[0]:.2f}"
+            # do eval
+            if self.save_steps > 0 and global_step % self.save_steps == 0:
+                log_str = f"\n\n{ctime()} || EVALUATION TIME"
+                log_str += f"\nEpoch-step {epoch}-{global_step}: Loss {t_loss/step_per_eval:.2f} | Task loss {tt_loss/step_per_eval:.2f} | Expl loss {te_loss/step_per_eval:.2f} | Train acc {evaluator.evaluate(quesid2ans)[0]:.2f}"
+                print_log(args, log_str)
+                t_loss, tt_loss, te_loss = 0, 0, 0
+                step_per_eval = 0
+
+                if self.valid_tuple is not None:  # Do Validation
+                    valid_score, valid_perplexity, nlg_scores = self.evaluate(eval_tuple)
+
+                    # no explanations generated
+                    if not nlg_scores:
+                        if valid_score > best_task:
+                            best_task = valid_score
+                            self.save("best_task")
+
+                        log_str = f"\nEpoch-step {epoch}-{global_step}: Valid Score: {valid_score:.3f} | Best Valid Score: {best_task:.3f}"
+                        tb_writer.add_scalar("valid_task_score", valid_score * 100.0, global_step)
+                        tb_writer.add_scalar("valid_expl_perplexity", valid_perplexity * 100.0, global_step)
                         print_log(args, log_str)
-                        t_loss, tt_loss, te_loss = 0, 0, 0
-                        step_per_eval = 0
+                        # continue entfernt, Block endet hier
 
-                        if self.valid_tuple is not None:  # Do Validation
-                            valid_score, valid_perplexity, nlg_scores = self.evaluate(
-                                eval_tuple
-                            )
+                    if valid_score > best_task:
+                        best_task = valid_score
+                        self.save("best_task")
 
-                            # no explanations generated
-                            if not nlg_scores:
+                    if self.train_type == "bb":
+                        nlg_avg = 0
+                        global_score = 0
+                        valid_perplexity = 0
+                    else:
+                        global_score = nlg_scores["global_score"]
+                        if global_score > best_global:
+                            best_global = global_score
+                            self.save("best_global")
 
-                                if valid_score > best_task:
-                                    best_task = valid_score
-                                    self.save("best_task")
+                        nlg_avg = nlg_scores["avg_all"]
+                        if nlg_avg > best_expl:
+                            best_expl = nlg_avg
+                            self.save("best_expl")
 
-                                log_str = f"\nEpoch-step {epoch}-{global_step}: Valid Score: {valid_score:.3f} | Best Valid Score: {best_task:.3f}"
-                                tb_writer.add_scalar(
-                                    "valid_task_score", valid_score * 100.0, global_step
-                                )
-                                tb_writer.add_scalar(
-                                    "valid_expl_perplexity",
-                                    valid_perplexity * 100.0,
-                                    global_step,
-                                )
-                                print_log(args, log_str)
-                                continue
+                    log_str = f"\nEpoch-step {epoch}-{global_step}: Valid Score: {valid_score:.3f} | NLG average: {nlg_avg:.3f} | Global score: {global_score:.3f}"
+                    log_str += f"\nEpoch-step {epoch}-{global_step}: Best Valid Score: {best_task:.3f} | Best NLG: {best_expl:.3f} | Best overall: {best_global:.3f}"
 
-                            if valid_score > best_task:
-                                best_task = valid_score
-                                self.save("best_task")
+                    tb_writer.add_scalar("valid_task_score", valid_score * 100.0, global_step)
+                    tb_writer.add_scalar("valid_expl_perplexity", valid_perplexity * 100.0, global_step)
 
-                            if self.train_type == "bb":
-                                nlg_avg = 0
-                                global_score = 0
-                                valid_perplexity = 0
-                            else:
-                                global_score = nlg_scores["global_score"]
-                                if global_score > best_global:
-                                    best_global = global_score
-                                    self.save("best_global")
+                    if nlg_scores:
+                        log_str += f"\nEpoch-step {epoch}-{global_step}: {print_dict(nlg_scores)}"
+                        for k, v in nlg_scores.items():
+                            tb_writer.add_scalar(k, v, global_step)
 
-                                nlg_avg = nlg_scores["avg_all"]
-                                if nlg_avg > best_expl:
-                                    best_expl = nlg_avg
-                                    self.save("best_expl")
-
-                            log_str = f"\nEpoch-step {epoch}-{global_step}: Valid Score: {valid_score:.3f} | NLG average: {nlg_avg:.3f} | Global score: {global_score:.3f}"
-                            log_str += f"\nEpoch-step {epoch}-{global_step}: Best Valid Score: {best_task:.3f} | Best NLG: {best_expl:.3f} | Best overall: {best_global:.3f}"
-
-                            tb_writer.add_scalar(
-                                "valid_task_score", valid_score * 100.0, global_step
-                            )
-                            tb_writer.add_scalar(
-                                "valid_expl_perplexity",
-                                valid_perplexity * 100.0,
-                                global_step,
-                            )
-
-                            if nlg_scores:
-                                log_str += f"\nEpoch-step {epoch}-{global_step}: {print_dict(nlg_scores)}"
-                                for k, v in nlg_scores.items():
-                                    tb_writer.add_scalar(k, v, global_step)
-
-                        print(log_str, end="")
-
-                        print_log(args, log_str)
-
-                        tb_writer.flush()
+                print(log_str, end="")
+                print_log(args, log_str)
+                tb_writer.flush()
 
         self.save("LAST")
         tb_writer.close()
