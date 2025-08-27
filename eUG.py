@@ -358,7 +358,9 @@ class VQA:
                         quesid2ans[qid] = ans
                 else:
                     for qid, l in zip(ques_id, label.cpu().numpy()):
-                        ans = dset.label2ans[l]
+                        if l not in dset.label2ans:
+                            print(f"[DEBUG] KeyError: l={l} not in label2ans. Available keys (first 10): {list(dset.label2ans.keys())[:10]}")
+                        ans = dset.label2ans.get(l, f"UNK_{l}")
                         quesid2ans[qid] = ans
 
                 t_loss += float(loss) * self.grad_accum
@@ -566,9 +568,9 @@ class VQA:
                         quesid2ans[qid] = ans
                 else:
                     for qid, l in zip(ques_id, label.cpu().numpy()):
-                        print("label2ans keys:", list(dset.label2ans.keys())[:10], "...", list(dset.label2ans.keys())[-10:])
-                        print("l:", l)
-                        ans = dset.label2ans[l]
+                        if l not in dset.label2ans:
+                            print(f"[DEBUG] KeyError: l={l} not in label2ans. Available keys (first 10): {list(dset.label2ans.keys())[:10]}")
+                        ans = dset.label2ans.get(l, f"UNK_{l}")
                         quesid2ans[qid] = ans
 
                 # generate and evaluate explanations
