@@ -356,7 +356,7 @@ class eViLTorchDataset(Dataset):
                                 print(f"[VQAX] ... {i+1} Zeilen geladen")
                     print(f"[VQAX] TSV-Feature-Caching abgeschlossen. Gesamt: {i+1} Zeilen.")
                     print(f"[VQAX] Speichere Feature-Cache: {cache_path}")
-                    import os
+                    # entfernt: import os
                     tmp_path = cache_path + ".tmp"
                     with open(tmp_path, "wb") as f:
                         pickle.dump(self._vqax_feat_cache, f, protocol=4)
