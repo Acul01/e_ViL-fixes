@@ -164,12 +164,9 @@ class GPT2VisionAttentiveTransformer(GPT2PreTrainedModel):
 
             outputs = block(hidden_states, layer_past, head_mask[i])
 
-            print("expl_modelling: outputs type:", type(outputs))
-            print("expl_modelling: outputs len:", len(outputs) if hasattr(outputs, '__len__') else 'no len')
-            print("expl_modelling: outputs:", outputs)
-
-            hidden_states, present = outputs[:2]
-            presents = presents + (present,)
+            # Unpacking outputs: robust nur Hidden States verwenden
+            hidden_states = outputs[0]
+            present = None  # wird nicht verwendet
 
             if self.output_attentions:
                 all_attentions.append(outputs[2])
