@@ -374,20 +374,20 @@ class VQA:
         if hasattr(self, "_missing_labels") and self._missing_labels:
             print(f"[DEBUG] Fehlende Labels im Mapping (gesamt): {sorted(list(self._missing_labels))}")
 
-                # global step
-                # grad accum snippet: https://gist.github.com/thomwolf/ac7a7da6b1888c2eeac8ac8b9b05d3d3
-                if (i + 1) % self.grad_accum == 0:
+        # global step
+        # grad accum snippet: https://gist.github.com/thomwolf/ac7a7da6b1888c2eeac8ac8b9b05d3d3
+        if (i + 1) % self.grad_accum == 0:
 
-                    nn.utils.clip_grad_norm_(self.model.parameters(), 5.0)
-                    self.optim.step()
-                    if args.optim != "bert":
-                        self.scheduler.step()  # Update learning rate schedule
+            nn.utils.clip_grad_norm_(self.model.parameters(), 5.0)
+            self.optim.step()
+            if args.optim != "bert":
+                self.scheduler.step()  # Update learning rate schedule
 
-                    # logging
-                    tb_writer.add_scalar("task loss", task_loss, global_step)
-                    tb_writer.add_scalar("explanation loss", expl_loss, global_step)
-                    tb_writer.add_scalar(
-                        "total loss", float(loss) * self.grad_accum, global_step
+            # logging
+            tb_writer.add_scalar("task loss", task_loss, global_step)
+            tb_writer.add_scalar("explanation loss", expl_loss, global_step)
+            tb_writer.add_scalar(
+                "total loss", float(loss) * self.grad_accum, global_step
                     )
                     if self.train_type == "all":
                         tb_writer.add_scalar(
