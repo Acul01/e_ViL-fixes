@@ -269,6 +269,8 @@ class VQA:
 
         for epoch in range(args.epochs):
             quesid2ans = {}
+            missing_labels_all = set()
+            out_of_range_labels = set()
             for i, (
                 ques_id,
                 feats,
@@ -357,13 +359,13 @@ class VQA:
                         ans = dset.label2ans[qid][l]
                         quesid2ans[qid] = ans
                 else:
-                    missing_labels = getattr(self, "_missing_labels", set())
                     for qid, l in zip(ques_id, label.cpu().numpy()):
                         if l not in dset.label2ans:
-                            missing_labels.add(l)
+                            missing_labels_all.add(l)
+                        if l < 0 or l > 1657:
+                            out_of_range_labels.add(l)
                         ans = dset.label2ans.get(l, f"UNK_{l}")
                         quesid2ans[qid] = ans
-                    self._missing_labels = missing_labels
 
                 t_loss += float(loss) * self.grad_accum
                 tt_loss += float(task_loss)
@@ -371,8 +373,14 @@ class VQA:
                 step_per_eval += 1
 
         # Am Ende: fehlende Labels gesammelt ausgeben
-        if hasattr(self, "_missing_labels") and self._missing_labels:
-            print(f"[DEBUG] Fehlende Labels im Mapping (gesamt): {sorted(list(self._missing_labels))}")
+        if missing_labels_all:
+            print(f"[DEBUG] Fehlende Labels im Mapping (gesamt): {sorted(list(missing_labels_all))}")
+        else:
+            print("[DEBUG] Alle Labels im Mapping enthalten.")
+        if out_of_range_labels:
+            print(f"[DEBUG] Labels außerhalb des Bereichs 0–1657: {sorted(list(out_of_range_labels))}")
+        else:
+            print("[DEBUG] Keine Labels außerhalb des Bereichs 0–1657.")
 
         # global step
 
