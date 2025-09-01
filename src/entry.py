@@ -1,3 +1,5 @@
+    print(f"[DEBUG] answer type: {type(answer)}, value: {answer}")
+    print(f"[DEBUG] rationale type: {type(rationale)}, value: {rationale}")
 # coding=utf-8
 # Copyright 2019 project LXRT.
 # Copyright 2018 The Google AI Language Team Authors and The HuggingFace Inc. team.
@@ -217,6 +219,11 @@ def preprocess_gpt2(
             tokenizer.end_question,
             do_padding,
         )
+        if isinstance(answer, list):
+            answer_str = " ".join(str(a) for a in answer)
+        else:
+            answer_str = str(answer)
+        print(f"[DEBUG] answer type: {type(answer)}, value: {answer}")
         answer_extended = " ".join(
             [tokenizer.begin_answer, answer, tokenizer.end_answer]
         )
@@ -227,6 +234,11 @@ def preprocess_gpt2(
             tokenizer.end_answer,
             do_padding,
         )
+        if isinstance(rationale, list):
+            rationale_str = " ".join(str(r) for r in rationale)
+        else:
+            rationale_str = str(rationale)
+        print(f"[DEBUG] rationale type: {type(rationale)}, value: {rationale}")
         rationale_extended = " ".join(
             [tokenizer.begin_rationale, rationale, tokenizer.end_rationale]
         )
