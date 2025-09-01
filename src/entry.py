@@ -217,6 +217,7 @@ def preprocess_gpt2(
         dummy_question = "DUMMY_QUESTION"
         dummy_answer = "DUMMY_ANSWER"
         dummy_rationale = "DUMMY_RATIONALE"
+        max_answer_length = 23  # Fallback value to avoid UnboundLocalError
 
         uniter_extended = " ".join(
             [tokenizer.begin_img, (uniter_dim + 1) * "u ", tokenizer.end_img]
