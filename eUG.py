@@ -541,6 +541,9 @@ class VQA:
                         .cpu()
                     )
                 else:
+                    print(f"[DEBUG] label.shape: {label.shape}, logit.shape: {logit.shape}")
+                    print(f"[DEBUG] label dtype: {label.dtype}, logit dtype: {logit.dtype}")
+                    print(f"[DEBUG] torch.argmax(logit, 1).shape: {torch.argmax(logit, 1).shape}")
                     correct_indices = (
                         torch.where(label.to(self.device) == torch.argmax(logit, 1))[0]
                         .detach()
