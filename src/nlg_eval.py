@@ -28,6 +28,8 @@ import subprocess
 
 
 def eval_nlp_scores(pred, gt, verbose=False):
+    print("Vorhersagen (pred):", pred)
+    print("Labels (gt):", gt)
     """
     evaluates the nlp scores bleu1-bleu4, meteor, rouge-l, cider, spice
 
