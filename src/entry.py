@@ -170,56 +170,36 @@ def preprocess_gpt2(
     do_padding=False,
     max_rationale_length=51,
     max_question_length=19,
-    is_vcr=False
 ):
     """
     Transforms text in required format for GPT-2.
     """
-    print(label_dict)
-    print(label_dict.keys())
+
     answers = []
     score, label = logit.max(1)
 
     # get textual representation of answer
     try:
         _ = label_dict[0]
-        # Flatten rationale if it contains nested lists and ensure all items are strings
-        def flatten_and_stringify(items):
-            result = []
-            for item in items:
-                if isinstance(item, list):
-                    result.extend(flatten_and_stringify(item))
-                elif item:
-                    result.append(str(item))
-            return result
+        is_vcr = True
+    except (KeyError, TypeError):
+        is_vcr = False
 
-        rationale_extended = " ".join(flatten_and_stringify(rationale))
+    if is_vcr:
+        for idx, l in enumerate(label.cpu().numpy()):
+            answers.append(label_dict[idx][l])
+    else:
+        for l in label.cpu().numpy():
+            answers.append(label_dict[str(l)])
+    max_answer_length = 23
 
-        if is_vcr:
-            for idx, l in enumerate(label.cpu().numpy()):
-                answers.append(label_dict[idx][l])
-        else:
-            for l in label.cpu().numpy():
-                answers.append(label_dict[str(l)])
-        max_answer_length = 23
+    block_size = (
+        max_rationale_length + max_question_length + max_answer_length + uniter_dim + 1
+    )
 
-        block_size = (
-            max_rationale_length + max_question_length + max_answer_length + uniter_dim + 1
-        )
+    inputs, token_type_ids_list, label_list = [], [], []
 
-        inputs, token_type_ids_list, label_list = [], [], []
-
-        for question, answer, rationale in zip(questions, answers, rationales):
-            # ...existing code...
-            pass
-    except Exception as e:
-        print(f"[ERROR] preprocess_gpt2: {e}")
-        # Use dummy values for question, answer, rationale to avoid UnboundLocalError
-        dummy_question = "DUMMY_QUESTION"
-        dummy_answer = "DUMMY_ANSWER"
-        dummy_rationale = "DUMMY_RATIONALE"
-        max_answer_length = 23  # Fallback value to avoid UnboundLocalError
-        block_size = max_rationale_length + max_question_length + max_answer_length + uniter_dim + 1  # Fallback for block_size
+    for question, answer, rationale in zip(questions, answers, rationales):
 
         uniter_extended = " ".join(
             [tokenizer.begin_img, (uniter_dim + 1) * "u ", tokenizer.end_img]
@@ -228,7 +208,7 @@ def preprocess_gpt2(
             tokenizer, uniter_extended, uniter_dim, tokenizer.end_img, do_padding
         )  # dummy placeholders
         question_extended = " ".join(
-            [tokenizer.begin_question, dummy_question, tokenizer.end_question]
+            [tokenizer.begin_question, question, tokenizer.end_question]
         )
         question_tokens = tokenize(
             tokenizer,
@@ -238,7 +218,7 @@ def preprocess_gpt2(
             do_padding,
         )
         answer_extended = " ".join(
-            [tokenizer.begin_answer, dummy_answer, tokenizer.end_answer]
+            [tokenizer.begin_answer, answer, tokenizer.end_answer]
         )
         answer_tokens = tokenize(
             tokenizer,
@@ -248,7 +228,7 @@ def preprocess_gpt2(
             do_padding,
         )
         rationale_extended = " ".join(
-            [tokenizer.begin_rationale, dummy_rationale, tokenizer.end_rationale]
+            [tokenizer.begin_rationale, rationale, tokenizer.end_rationale]
         )
         rationale_tokens = tokenize(
             tokenizer,
