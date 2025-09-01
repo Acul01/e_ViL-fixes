@@ -223,52 +223,48 @@ class eViLTorchDataset(Dataset):
 
         # getting image features
         if self.task == "vqax":
-
-            img_offset = self.offset[img_id]
-            img_split = img_id[5:7]
-            if img_split == "tr":
-                f = open(
-                    os.path.join(
-                        MSCOCO_IMGFEAT_ROOT, "%s_obj36.tsv" % (SPLIT2NAME["train"])
-                    )
-                )
-            elif img_split == "va":
-                f = open(
-                    os.path.join(
-                        MSCOCO_IMGFEAT_ROOT, "%s_obj36.tsv" % (SPLIT2NAME["valid"])
-                    )
-                )
-            else:
-                f = open(
-                    os.path.join(
-                        MSCOCO_IMGFEAT_ROOT, "%s_obj36.tsv" % (SPLIT2NAME["test"])
-                    )
-                )
-            f.seek(img_offset)
-            img_info = f.readline()
-            f.close()
-
-            assert img_info.startswith("COCO") and img_info.endswith(
-                "\n"
-            ), "Offset is inappropriate"
-            img_info = img_info.split("\t")
-
-            decode_img = self._decodeIMG(img_info)
-            img_h = decode_img[0]
-            img_w = decode_img[1]
-            feats = decode_img[-1].copy()
-            boxes = decode_img[-2].copy()
-            del decode_img
-
-            # Normalize the boxes (to 0 ~ 1)
-            if self.model == "uniter":
-                boxes = self._uniterBoxes(boxes)
-            else:
-                boxes[:, (0, 2)] /= img_w
-                boxes[:, (1, 3)] /= img_h
-
-                np.testing.assert_array_less(boxes, 1 + 1e-5)
-                np.testing.assert_array_less(-boxes, 0 + 1e-5)
+            # --- Offset-basierter Zugriff auskommentiert ---
+            # img_offset = self.offset[img_id]
+            # img_split = img_id[5:7]
+            # if img_split == "tr":
+            #     f = open(
+            #         os.path.join(
+            #             MSCOCO_IMGFEAT_ROOT, "%s_obj36.tsv" % (SPLIT2NAME["train"])
+            #         )
+            #     )
+            # elif img_split == "va":
+            #     f = open(
+            #         os.path.join(
+            #             MSCOCO_IMGFEAT_ROOT, "%s_obj36.tsv" % (SPLIT2NAME["valid"])
+            #         )
+            #     )
+            # else:
+            #     f = open(
+            #         os.path.join(
+            #             MSCOCO_IMGFEAT_ROOT, "%s_obj36.tsv" % (SPLIT2NAME["test"])
+            #         )
+            #     )
+            # f.seek(img_offset)
+            # img_info = f.readline()
+            # f.close()
+            # assert img_info.startswith("COCO") and img_info.endswith(
+            #     "\n"
+            # ), "Offset is inappropriate"
+            # img_info = img_info.split("\t")
+            # decode_img = self._decodeIMG(img_info)
+            # img_h = decode_img[0]
+            # img_w = decode_img[1]
+            # feats = decode_img[-1].copy()
+            # boxes = decode_img[-2].copy()
+            # del decode_img
+            # # Normalize the boxes (to 0 ~ 1)
+            # if self.model == "uniter":
+            #     boxes = self._uniterBoxes(boxes)
+            # else:
+            #     boxes[:, (0, 2)] /= img_w
+            #     boxes[:, (1, 3)] /= img_h
+            #     np.testing.assert_array_less(boxes, 1 + 1e-5)
+            #     np.testing.assert_array_less(-boxes, 0 + 1e-5)
 
         elif self.task in ["esnlive", "vcr"]:
             dump = self.txn.get(img_id.encode("utf-8"))
