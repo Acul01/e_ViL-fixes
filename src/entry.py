@@ -186,7 +186,7 @@ def preprocess_gpt2(
             answers.append(label_dict[idx][l])
     else:
         for l in label.cpu().numpy():
-            answers.append(label_dict[str(l)])
+            answers.append(label_dict[l])
     max_answer_length = 23
 
     block_size = (
