@@ -113,8 +113,9 @@ class eViLDataset:
 
         # Answers
         if self.task == "vqax":
-            self.ans2label = json.load(open("data/trainval_ans2label.json"))
-            self.label2ans = json.load(open("data/trainval_label2ans.json"))
+            # Lade und konvertiere Keys zu int
+            self.ans2label = {k: int(v) for k, v in json.load(open("data/trainval_ans2label.json")).items()}
+            self.label2ans = {int(k): v for k, v in json.load(open("data/trainval_label2ans.json")).items()}
             assert len(self.ans2label) == len(self.label2ans)
 
         elif self.task == "esnlive":
