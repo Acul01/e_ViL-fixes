@@ -213,6 +213,10 @@ def preprocess_gpt2(
             pass
     except Exception as e:
         print(f"[ERROR] preprocess_gpt2: {e}")
+        # Use dummy values for question, answer, rationale to avoid UnboundLocalError
+        dummy_question = "DUMMY_QUESTION"
+        dummy_answer = "DUMMY_ANSWER"
+        dummy_rationale = "DUMMY_RATIONALE"
 
         uniter_extended = " ".join(
             [tokenizer.begin_img, (uniter_dim + 1) * "u ", tokenizer.end_img]
@@ -221,7 +225,7 @@ def preprocess_gpt2(
             tokenizer, uniter_extended, uniter_dim, tokenizer.end_img, do_padding
         )  # dummy placeholders
         question_extended = " ".join(
-            [tokenizer.begin_question, question, tokenizer.end_question]
+            [tokenizer.begin_question, dummy_question, tokenizer.end_question]
         )
         question_tokens = tokenize(
             tokenizer,
@@ -231,7 +235,7 @@ def preprocess_gpt2(
             do_padding,
         )
         answer_extended = " ".join(
-            [tokenizer.begin_answer, answer, tokenizer.end_answer]
+            [tokenizer.begin_answer, dummy_answer, tokenizer.end_answer]
         )
         answer_tokens = tokenize(
             tokenizer,
@@ -241,7 +245,7 @@ def preprocess_gpt2(
             do_padding,
         )
         rationale_extended = " ".join(
-            [tokenizer.begin_rationale, rationale, tokenizer.end_rationale]
+            [tokenizer.begin_rationale, dummy_rationale, tokenizer.end_rationale]
         )
         rationale_tokens = tokenize(
             tokenizer,
