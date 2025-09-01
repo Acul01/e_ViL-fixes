@@ -179,11 +179,7 @@ def preprocess_gpt2(
     score, label = logit.max(1)
 
     # get textual representation of answer
-    try:
-        args.task == 'vcr'
-        is_vcr = True
-    except (KeyError, TypeError):
-        is_vcr = False
+    is_vcr = getattr(args, 'task', None) == 'vcr'
 
     if is_vcr:
         for idx, l in enumerate(label.cpu().numpy()):
