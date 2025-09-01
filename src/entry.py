@@ -180,7 +180,7 @@ def preprocess_gpt2(
 
     # get textual representation of answer
     try:
-        _ = label_dict[0]
+        args.task == 'vcr'
         is_vcr = True
     except (KeyError, TypeError):
         is_vcr = False
