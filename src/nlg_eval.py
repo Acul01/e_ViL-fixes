@@ -14,6 +14,7 @@
 # limitations under the License.
 
 from cococaption.pycocoevalcap.bleu.bleu import Bleu
+import numpy as np
 from cococaption.pycocoevalcap.cider.cider import Cider
 from cococaption.pycocoevalcap.meteor.meteor import Meteor
 from cococaption.pycocoevalcap.rouge.rouge import Rouge
@@ -96,12 +97,16 @@ def input_subset(
     Get subset of examples where label was predicted correctly. We only measure NLG metrics for those.
     """
 
-    input_ids = input_ids.index_select(0, torch.tensor(correct_idx).to(device))
+    # Falls correct_idx ein Bool-Array ist, konvertiere zu Integer-Indices
+    if len(correct_idx) > 0 and isinstance(correct_idx[0], (bool, np.bool_)):
+        correct_idx = [i for i, x in enumerate(correct_idx) if x]
+
+    input_ids = input_ids.index_select(0, torch.tensor(correct_idx, dtype=torch.long).to(device))
     token_type_ids = token_type_ids.index_select(
-        0, torch.tensor(correct_idx).to(device)
+        0, torch.tensor(correct_idx, dtype=torch.long).to(device)
     )
     visual_representations = visual_representations.index_select(
-        0, torch.tensor(correct_idx).to(device)
+        0, torch.tensor(correct_idx, dtype=torch.long).to(device)
     )
 
     expl = [expl[i] for i in correct_idx]
