@@ -204,13 +204,8 @@ class eViLTorchDataset(Dataset):
                     with open(tmp_path, "wb") as f:
                         pickle.dump(self._vqax_feat_cache, f, protocol=4)
                     os.replace(tmp_path, cache_path)
-            # img_id darf hier nicht verwendet werden, da er erst in __getitem__ aus datum extrahiert wird
+            # img_id, feats und boxes dürfen hier nicht verwendet werden!
             # Der Cache wird im Konstruktor nur initialisiert, nicht abgefragt!
-            if feats is None or boxes is None:
-                feats = np.zeros((36, 2048), dtype="float32")
-                boxes = np.zeros((36, 4), dtype="float32")
-            if self.model == "uniter":
-                boxes = self._uniterBoxes(boxes)
             # remove all images for which no features are available (optional, falls gewünscht)
             self.data = self.raw_dataset.data
         else:  # initialize mdb stuff
