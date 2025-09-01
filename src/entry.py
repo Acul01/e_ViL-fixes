@@ -170,6 +170,7 @@ def preprocess_gpt2(
     do_padding=False,
     max_rationale_length=51,
     max_question_length=19,
+    is_vcr=False
 ):
     """
     Transforms text in required format for GPT-2.
@@ -193,21 +194,25 @@ def preprocess_gpt2(
 
         rationale_extended = " ".join(flatten_and_stringify(rationale))
 
-    if is_vcr:
-        for idx, l in enumerate(label.cpu().numpy()):
-            answers.append(label_dict[idx][l])
-    else:
-        for l in label.cpu().numpy():
-            answers.append(label_dict[str(l)])
-    max_answer_length = 23
+        if is_vcr:
+            for idx, l in enumerate(label.cpu().numpy()):
+                answers.append(label_dict[idx][l])
+        else:
+            for l in label.cpu().numpy():
+                answers.append(label_dict[str(l)])
+        max_answer_length = 23
 
-    block_size = (
-        max_rationale_length + max_question_length + max_answer_length + uniter_dim + 1
-    )
+        block_size = (
+            max_rationale_length + max_question_length + max_answer_length + uniter_dim + 1
+        )
 
-    inputs, token_type_ids_list, label_list = [], [], []
+        inputs, token_type_ids_list, label_list = [], [], []
 
-    for question, answer, rationale in zip(questions, answers, rationales):
+        for question, answer, rationale in zip(questions, answers, rationales):
+            # ...existing code...
+            pass
+    except Exception as e:
+        print(f"[ERROR] preprocess_gpt2: {e}")
 
         uniter_extended = " ".join(
             [tokenizer.begin_img, (uniter_dim + 1) * "u ", tokenizer.end_img]
