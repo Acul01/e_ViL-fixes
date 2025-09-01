@@ -1,5 +1,3 @@
-    print(f"[DEBUG] answer type: {type(answer)}, value: {answer}")
-    print(f"[DEBUG] rationale type: {type(rationale)}, value: {rationale}")
 # coding=utf-8
 # Copyright 2019 project LXRT.
 # Copyright 2018 The Google AI Language Team Authors and The HuggingFace Inc. team.
@@ -202,6 +200,8 @@ def preprocess_gpt2(
     inputs, token_type_ids_list, label_list = [], [], []
 
     for question, answer, rationale in zip(questions, answers, rationales):
+        print(f"[DEBUG] answer type: {type(answer)}, value: {answer}")
+        print(f"[DEBUG] rationale type: {type(rationale)}, value: {rationale}")
 
         uniter_extended = " ".join(
             [tokenizer.begin_img, (uniter_dim + 1) * "u ", tokenizer.end_img]
@@ -223,10 +223,9 @@ def preprocess_gpt2(
             answer_str = " ".join(str(a) for a in answer)
         else:
             answer_str = str(answer)
-        print(f"[DEBUG] answer type: {type(answer)}, value: {answer}")
-        answer_extended = " ".join(
-            [tokenizer.begin_answer, answer, tokenizer.end_answer]
-        )
+        answer_extended = " ".join([
+            tokenizer.begin_answer, answer_str, tokenizer.end_answer
+        ])
         answer_tokens = tokenize(
             tokenizer,
             answer_extended,
@@ -238,10 +237,9 @@ def preprocess_gpt2(
             rationale_str = " ".join(str(r) for r in rationale)
         else:
             rationale_str = str(rationale)
-        print(f"[DEBUG] rationale type: {type(rationale)}, value: {rationale}")
-        rationale_extended = " ".join(
-            [tokenizer.begin_rationale, rationale, tokenizer.end_rationale]
-        )
+        rationale_extended = " ".join([
+            tokenizer.begin_rationale, rationale_str, tokenizer.end_rationale
+        ])
         rationale_tokens = tokenize(
             tokenizer,
             rationale_extended,
