@@ -166,36 +166,8 @@ class eViLTorchDataset(Dataset):
         self.task = args.task
 
         if self.task == "vqax":
-            self.offset = {}
-            for split in self.raw_dataset.splits:
-                f = open(
-                    os.path.join(
-                        MSCOCO_IMGFEAT_ROOT,
-                        "%s_offset.txt"
-                        % (
-                            SPLIT2NAME[
-                                split.replace("_toy", "")
-                                .replace(".json", "")
-                                .split(
-                                    "/",
-                                )[-1]
-                            ]
-                        ),
-                    )
-                )
-                offset = f.readlines()
-                for l in offset:
-                    self.offset[l.split("\t")[0]] = int(l.split("\t")[1].strip())
-
-            # remove all images for which no features are available
-            self.data = []
-            for datum in self.raw_dataset.data:
-                if datum["img_id"] in self.offset.keys():
-                    self.data.append(datum)
-            print(
-                f"Used {len(self.data)} of {len(self.raw_dataset)} available datapoints from the {self.task} dataset."
-            )
-            print()
+            # remove all images for which no features are available (optional, falls gewünscht)
+            self.data = self.raw_dataset.data
         else:  # initialize mdb stuff
             if self.task == "esnlive":
                 img_path = FLICKR30KDB
