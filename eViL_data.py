@@ -265,7 +265,15 @@ class eViLTorchDataset(Dataset):
             #     boxes[:, (1, 3)] /= img_h
             #     np.testing.assert_array_less(boxes, 1 + 1e-5)
             #     np.testing.assert_array_less(-boxes, 0 + 1e-5)
-            pass
+            
+            # Lookup aus RAM
+            boxes, feats = self._vqax_feat_cache.get(img_id, (None, None))
+            if feats is None or boxes is None:
+                feats = np.zeros((36, 2048), dtype="float32")
+                boxes = np.zeros((36, 4), dtype="float32")
+            if self.model == "uniter":
+                boxes = self._uniterBoxes(boxes)
+
         elif self.task in ["esnlive", "vcr"]:
             dump = self.txn.get(img_id.encode("utf-8"))
             nbb = self.name2nbb[img_id]
