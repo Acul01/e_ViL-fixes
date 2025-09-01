@@ -166,6 +166,50 @@ class eViLTorchDataset(Dataset):
         self.task = args.task
 
         if self.task == "vqax":
+            # Initialisiere RAM-Cache falls nicht vorhanden
+            import csv, pickle, base64, os
+            split_attr = getattr(self.raw_dataset, "splits", None)
+            split_str = (" ".join(map(str, split_attr)) if isinstance(split_attr,(list,tuple)) else str(split_attr or "")).lower()
+            if "train" in split_str:
+                tsv_file = "train2014_obj36.tsv"
+            elif "val" in split_str or "valid" in split_str or "dev" in split_str:
+                tsv_file = "val2014_obj36.tsv"
+            elif "test" in split_str or "test2015" in split_str:
+                tsv_file = "test2015_obj36.tsv"
+            else:
+                tsv_file = "val2014_obj36.tsv"
+            tsv_path = os.path.join(self.args.bb_path, tsv_file)
+            cache_path = tsv_path + ".pkl"
+            if not hasattr(self, "_vqax_feat_cache"):
+                if os.path.exists(cache_path):
+                    print(f"[VQAX] Lade Feature-Cache aus Datei: {cache_path}")
+                    with open(cache_path, "rb") as f:
+                        self._vqax_feat_cache = pickle.load(f)
+                else:
+                    self._vqax_feat_cache = {}
+                    print(f"[VQAX] Lade TSV-Features in RAM: {tsv_file}")
+                    with open(tsv_path, "r") as f:
+                        reader = csv.reader(f, delimiter='\t')
+                        for i, row in enumerate(reader):
+                            img_id_row = row[0]
+                            num_boxes = int(row[7])
+                            boxes = np.frombuffer(base64.b64decode(row[8]), dtype=np.float32).reshape(num_boxes, -1)
+                            feats = np.frombuffer(base64.b64decode(row[9]), dtype=np.float32).reshape(num_boxes, -1)
+                            self._vqax_feat_cache[img_id_row] = (boxes, feats)
+                            if (i+1) % 10000 == 0:
+                                print(f"[VQAX] ... {i+1} Zeilen geladen")
+                    print(f"[VQAX] TSV-Feature-Caching abgeschlossen. Gesamt: {i+1} Zeilen.")
+                    print(f"[VQAX] Speichere Feature-Cache: {cache_path}")
+                    tmp_path = cache_path + ".tmp"
+                    with open(tmp_path, "wb") as f:
+                        pickle.dump(self._vqax_feat_cache, f, protocol=4)
+                    os.replace(tmp_path, cache_path)
+            boxes, feats = self._vqax_feat_cache.get(img_id, (None, None))
+            if feats is None or boxes is None:
+                feats = np.zeros((36, 2048), dtype="float32")
+                boxes = np.zeros((36, 4), dtype="float32")
+            if self.model == "uniter":
+                boxes = self._uniterBoxes(boxes)
             # remove all images for which no features are available (optional, falls gewünscht)
             self.data = self.raw_dataset.data
         else:  # initialize mdb stuff
@@ -215,7 +259,6 @@ class eViLTorchDataset(Dataset):
             return len(self.raw_dataset.data)
 
     def __getitem__(self, item: int):
-
         datum = self.raw_dataset.data[item]
         img_id = datum["img_id"]
         ques_id = datum["question_id"]
@@ -224,48 +267,7 @@ class eViLTorchDataset(Dataset):
         # getting image features
         if self.task == "vqax":
             # --- Offset-basierter Zugriff auskommentiert ---
-            # img_offset = self.offset[img_id]
-            # img_split = img_id[5:7]
-            # if img_split == "tr":
-            #     f = open(
-            #         os.path.join(
-            #             MSCOCO_IMGFEAT_ROOT, "%s_obj36.tsv" % (SPLIT2NAME["train"])
-            #         )
-            #     )
-            # elif img_split == "va":
-            #     f = open(
-            #         os.path.join(
-            #             MSCOCO_IMGFEAT_ROOT, "%s_obj36.tsv" % (SPLIT2NAME["valid"])
-            #         )
-            #     )
-            # else:
-            #     f = open(
-            #         os.path.join(
-            #             MSCOCO_IMGFEAT_ROOT, "%s_obj36.tsv" % (SPLIT2NAME["test"])
-            #         )
-            #     )
-            # f.seek(img_offset)
-            # img_info = f.readline()
-            # f.close()
-            # assert img_info.startswith("COCO") and img_info.endswith(
-            #     "\n"
-            # ), "Offset is inappropriate"
-            # img_info = img_info.split("\t")
-            # decode_img = self._decodeIMG(img_info)
-            # img_h = decode_img[0]
-            # img_w = decode_img[1]
-            # feats = decode_img[-1].copy()
-            # boxes = decode_img[-2].copy()
-            # del decode_img
-            # # Normalize the boxes (to 0 ~ 1)
-            # if self.model == "uniter":
-            #     boxes = self._uniterBoxes(boxes)
-            # else:
-            #     boxes[:, (0, 2)] /= img_w
-            #     boxes[:, (1, 3)] /= img_h
-            #     np.testing.assert_array_less(boxes, 1 + 1e-5)
-            #     np.testing.assert_array_less(-boxes, 0 + 1e-5)
-            
+            # ...existing code...
             # Lookup aus RAM
             boxes, feats = self._vqax_feat_cache.get(img_id, (None, None))
             if feats is None or boxes is None:
@@ -288,65 +290,11 @@ class eViLTorchDataset(Dataset):
             boxes[:, 5] = img_bb[:, 4]
             boxes[:, 4] = img_bb[:, 5]
             boxes[:, 6] = boxes[:, 4] * boxes[:, 5]
-        elif self.task == "vqax":
-            # Persistentes Feature-Caching mit pickle
-            import csv, pickle
-            csv.field_size_limit(100000000)
-            tsv_file = None
-            split_attr = getattr(self.raw_dataset, "splits", None)
-            split_str = (" ".join(map(str, split_attr)) if isinstance(split_attr,(list,tuple)) else str(split_attr or "")).lower()
-            if "train" in split_str:
-                tsv_file = "train2014_obj36.tsv"
-            elif "val" in split_str or "valid" in split_str or "dev" in split_str:
-                tsv_file = "val2014_obj36.tsv"
-            elif "test" in split_str or "test2015" in split_str:
-                tsv_file = "test2015_obj36.tsv"
-            else:
-                tsv_file = "val2014_obj36.tsv"
-            tsv_path = os.path.join(self.args.bb_path, tsv_file)
-            cache_path = tsv_path + ".pkl"
-            if not hasattr(self, "_vqax_feat_cache"):
-                # Versuche, Cache aus Datei zu laden
-                if os.path.exists(cache_path):
-                    print(f"[VQAX] Lade Feature-Cache aus Datei: {cache_path}")
-                    with open(cache_path, "rb") as f:
-                        self._vqax_feat_cache = pickle.load(f)
-                else:
-                    # Cache neu aufbauen und speichern
-                    self._vqax_feat_cache = {}
-                    print(f"[VQAX] Lade TSV-Features in RAM: {tsv_file}")
-                    with open(tsv_path, "r") as f:
-                        reader = csv.reader(f, delimiter='\t')
-                        for i, row in enumerate(reader):
-                            img_id_row = row[0]
-                            num_boxes = int(row[7])
-                            boxes = np.frombuffer(base64.b64decode(row[8]), dtype=np.float32).reshape(num_boxes, -1)
-                            feats = np.frombuffer(base64.b64decode(row[9]), dtype=np.float32).reshape(num_boxes, -1)
-                            self._vqax_feat_cache[img_id_row] = (boxes, feats)
-                            if (i+1) % 10000 == 0:
-                                print(f"[VQAX] ... {i+1} Zeilen geladen")
-                    print(f"[VQAX] TSV-Feature-Caching abgeschlossen. Gesamt: {i+1} Zeilen.")
-                    print(f"[VQAX] Speichere Feature-Cache: {cache_path}")
-                    # entfernt: import os
-                    tmp_path = cache_path + ".tmp"
-                    with open(tmp_path, "wb") as f:
-                        pickle.dump(self._vqax_feat_cache, f, protocol=4)
-                    os.replace(tmp_path, cache_path)
-            # Lookup aus RAM
-            boxes, feats = self._vqax_feat_cache.get(img_id, (None, None))
-            if feats is None or boxes is None:
-                # Fallback: Dummy-Werte
-                feats = np.zeros((36, 2048), dtype="float32")
-                boxes = np.zeros((36, 4), dtype="float32")
-            # UNITER erwartet 7 Box-Features pro Box
-            if self.model == "uniter":
-                boxes = self._uniterBoxes(boxes)
 
         if "label" in datum:
             label = datum["label"]
             if self.task == "vqax":
                 target = torch.zeros(self.raw_dataset.num_answers)
-                
                 for ans, score in label.items():
                     target[self.raw_dataset.ans2label[ans]] = score
             elif self.task == "esnlive":
