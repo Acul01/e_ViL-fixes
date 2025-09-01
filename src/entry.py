@@ -181,9 +181,17 @@ def preprocess_gpt2(
     # get textual representation of answer
     try:
         _ = label_dict[0]
-        is_vcr = True
-    except (KeyError, TypeError):
-        is_vcr = False
+        # Flatten rationale if it contains nested lists and ensure all items are strings
+        def flatten_and_stringify(items):
+            result = []
+            for item in items:
+                if isinstance(item, list):
+                    result.extend(flatten_and_stringify(item))
+                elif item:
+                    result.append(str(item))
+            return result
+
+        rationale_extended = " ".join(flatten_and_stringify(rationale))
 
     if is_vcr:
         for idx, l in enumerate(label.cpu().numpy()):

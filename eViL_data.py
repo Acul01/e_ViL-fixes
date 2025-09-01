@@ -375,6 +375,7 @@ class eViLTorchDataset(Dataset):
             label = datum["label"]
             if self.task == "vqa_x":
                 target = torch.zeros(self.raw_dataset.num_answers)
+                
                 for ans, score in label.items():
                     target[self.raw_dataset.ans2label[ans]] = score
             elif self.task == "esnlive":
