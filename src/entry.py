@@ -175,7 +175,8 @@ def preprocess_gpt2(
     """
     Transforms text in required format for GPT-2.
     """
-
+    print(label_dict)
+    print(label_dict.keys())
     answers = []
     score, label = logit.max(1)
 
