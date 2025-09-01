@@ -130,7 +130,7 @@ def get_average_nlg(nlg_global_scores):
 def get_nlg_scores(dtype, gen_expl, gt_expl, bert_metric, device):
 
     # getting NLG metrics
-    if dtype == "vqa_x":
+    if dtype == "vqax":
         nlg_scores = eval_nlp_scores([[x] for x in gen_expl], gt_expl)
     else:
         nlg_scores = eval_nlp_scores([[x] for x in gen_expl], [[x] for x in gt_expl])

@@ -47,7 +47,7 @@ def parse_args():
 
     parser.add_argument("--model", default="uniter")
     parser.add_argument(
-        "--task", type=str, help="name of dataset: [vqa_x, vcr, esnlive]"
+        "--task", type=str, help="name of dataset: [vqax, vcr, esnlive]"
     )
 
     # Data Splits

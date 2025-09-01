@@ -73,7 +73,7 @@ def get_data_tuple(splits: str, bs: int, shuffle=False, drop_last=False) -> Data
     tset = eViLTorchDataset(args, dset, args.model)
     evaluator = VQAXEvaluator(dset)
 
-    if args.task == "vqa_x":
+    if args.task == "vqax":
         collate_fn = None
     else:
         collate_fn = bbox_collate
@@ -212,7 +212,7 @@ class VQA:
 
         # Loss and Optimizer
         if not args.test:
-            if self.dtype == "vqa_x":
+            if self.dtype == "vqax":
                 self.loss_func = nn.BCEWithLogitsLoss()
             else:
                 self.loss_func = nn.CrossEntropyLoss()
@@ -302,7 +302,7 @@ class VQA:
                     expl_gt,
                 )
 
-                if self.dtype == "vqa_x":
+                if self.dtype == "vqax":
                     loss_multiplier = logit.size(1)
                 elif self.dtype == "vcr":
                     loss_multiplier = 4
@@ -506,7 +506,7 @@ class VQA:
             else:
                 model_dict = dset.label2ans
 
-            if self.dtype == "vqa_x":  # multiple explanations
+            if self.dtype == "vqax":  # multiple explanations
                 triple_expl = [[x[y] for x in expl] for y in range(len(expl[0]))]
                 expl = expl[0]
             else:
@@ -523,7 +523,7 @@ class VQA:
                 ) = self.model(feats, boxes, sent, expl, answers, model_dict, gt)
 
                 # get indices for when to generate explanations
-                if self.dtype == "vqa_x":
+                if self.dtype == "vqax":
                     if args.gt_cond:
                         logit = label
                     correct_indices = []
@@ -621,7 +621,7 @@ class VQA:
                                 None,
                             )
 
-                            if self.dtype == "vqa_x":
+                            if self.dtype == "vqax":
                                 try:
                                     bert_metric.add_batch(
                                         predictions=generated_explanations,

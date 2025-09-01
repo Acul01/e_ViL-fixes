@@ -112,12 +112,7 @@ class eViLDataset:
         self.id2datum = {datum["question_id"]: datum for datum in self.data}
 
         # Answers
-        if self.task == "vqa_x":
-            self.ans2label = json.load(open("data/trainval_ans2label.json"))
-            self.label2ans = json.load(open("data/trainval_label2ans.json"))
-            assert len(self.ans2label) == len(self.label2ans)
-
-        elif self.task == "vqax":
+        if self.task == "vqax":
             self.ans2label = json.load(open("data/trainval_ans2label.json"))
             self.label2ans = json.load(open("data/trainval_label2ans.json"))
             assert len(self.ans2label) == len(self.label2ans)
@@ -170,7 +165,7 @@ class eViLTorchDataset(Dataset):
         self.model = model
         self.task = args.task
 
-        if self.task == "vqa_x":
+        if self.task == "vqax":
             self.offset = {}
             for split in self.raw_dataset.splits:
                 f = open(
@@ -242,7 +237,7 @@ class eViLTorchDataset(Dataset):
                 raise ValueError(f"Unbekannte task '{self.task}'. Erwartet: esnlive | vcr | vqax")
 
     def __len__(self):
-        if self.task == "vqa_x":
+        if self.task == "vqax":
             return len(self.data)
         else:
             return len(self.raw_dataset.data)
@@ -255,7 +250,7 @@ class eViLTorchDataset(Dataset):
         ques = datum["sent"]
 
         # getting image features
-        if self.task == "vqa_x":
+        if self.task == "vqax":
 
             img_offset = self.offset[img_id]
             img_split = img_id[5:7]
@@ -373,7 +368,7 @@ class eViLTorchDataset(Dataset):
 
         if "label" in datum:
             label = datum["label"]
-            if self.task == "vqa_x":
+            if self.task == "vqax":
                 target = torch.zeros(self.raw_dataset.num_answers)
                 
                 for ans, score in label.items():
