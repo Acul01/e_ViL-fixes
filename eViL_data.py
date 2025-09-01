@@ -265,7 +265,7 @@ class eViLTorchDataset(Dataset):
             #     boxes[:, (1, 3)] /= img_h
             #     np.testing.assert_array_less(boxes, 1 + 1e-5)
             #     np.testing.assert_array_less(-boxes, 0 + 1e-5)
-
+            pass
         elif self.task in ["esnlive", "vcr"]:
             dump = self.txn.get(img_id.encode("utf-8"))
             nbb = self.name2nbb[img_id]
