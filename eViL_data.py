@@ -27,6 +27,9 @@ import msgpack_numpy
 
 msgpack_numpy.patch()
 
+import csv
+csv.field_size_limit(10000000)
+
 
 # The path to data and image features.
 VQA_DATA_ROOT = "data/"
