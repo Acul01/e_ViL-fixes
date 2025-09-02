@@ -293,7 +293,11 @@ class eViLTorchDataset(Dataset):
             if self.task == "vqax":
                 target = torch.zeros(self.raw_dataset.num_answers)
                 for ans, score in label.items():
-                    target[self.raw_dataset.ans2label[ans]] = score
+                    try:
+                        target[self.raw_dataset.ans2label[ans]] = score
+                    except KeyError:
+                        print(f"[DEBUG] KeyError in ans2label: ans='{ans}' not found. Available keys (first 10): {list(self.raw_dataset.ans2label.keys())[:10]}")
+                        # Optional: target bleibt an dieser Stelle 0
             elif self.task == "esnlive":
                 target = self.raw_dataset.ans2label[label]
             elif self.task == "vcr":
