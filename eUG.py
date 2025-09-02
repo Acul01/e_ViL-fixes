@@ -495,6 +495,10 @@ class VQA:
 
         for i, datum_tuple in enumerate(loader):
             ques_id, feats, boxes, sent, label, expl, answers = datum_tuple
+            # Print predictions and ground truth labels for comparison
+            print("[PREDICT] Batch", i)
+            print("[PREDICT] Vorhersagen (pred):", label)
+            print("[PREDICT] Groundtruth (gt):", answers)
 
             if args.gt_cond:
                 gt = label
@@ -686,6 +690,7 @@ class VQA:
                             ]
                         input_record["prediction"] = quesid2ans[qid]
                         input_record["gt"] = dset.id2datum[qid]["label"]
+                        print('INPUT RECORD:', input_record)
                         if self.dtype == "vcr":
                             input_record["img_id"] = dset.id2datum[qid]["raw_img_id"]
                             input_record["movie"] = dset.id2datum[qid]["movie"]
