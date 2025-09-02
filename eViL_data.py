@@ -204,13 +204,17 @@ class eViLTorchDataset(Dataset):
                                 print(f"[VQAX] ... {i+1} Zeilen geladen")
                     print(f"[VQAX] TSV-Feature-Caching abgeschlossen. Gesamt: {i+1} Zeilen.")
                     print(f"[VQAX] Speichere Feature-Cache: {cache_path}")
+                    
+                    print("[VQAX] cache size:", len(self._vqax_feat_cache))
+                    ex = self.raw_dataset.data[0]
+                    k = str(ex["img_id"])
+                    # ggf. normalisieren (siehe nächster Abschnitt)
+                    print("[VQAX] sample img_id:", k, "in cache?", k in self._vqax_feat_cache)
+
                     tmp_path = cache_path + ".tmp"
                     with open(tmp_path, "wb") as f:
                         pickle.dump(self._vqax_feat_cache, f, protocol=4)
                     os.replace(tmp_path, cache_path)
-            # img_id, feats und boxes dürfen hier nicht verwendet werden!
-            # Der Cache wird im Konstruktor nur initialisiert, nicht abgefragt!
-            # remove all images for which no features are available (optional, falls gewünscht)
             self.data = self.raw_dataset.data
         else:  # initialize mdb stuff
             if self.task == "esnlive":
