@@ -338,8 +338,14 @@ class UniterEncoder(nn.Module):
         return output, lang_v_feats
 
     def load(self, path):
-
+        import os, torch
+        print(f"[DBG] try load pretrained from: {os.path.abspath(path)} "
+            f"exists={os.path.exists(path)} "
+            f"size={os.path.getsize(path) if os.path.exists(path) else -1}")
+        
         state_dict = torch.load(path)
+
+        print(f"[DBG] pretrained keys: {len(state_dict)}  sample: {list(state_dict)[:5]}")
 
         print("Load UNITER PreTrained Model from %s" % path)
         load_keys = set(state_dict.keys())
