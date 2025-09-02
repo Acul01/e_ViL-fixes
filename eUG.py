@@ -545,9 +545,6 @@ class VQA:
                         .cpu()
                     )
                 else:
-                    print(f"[DEBUG] label.shape: {label.shape}, logit.shape: {logit.shape}")
-                    print(f"[DEBUG] label dtype: {label.dtype}, logit dtype: {logit.dtype}")
-                    print(f"[DEBUG] torch.argmax(logit, 1).shape: {torch.argmax(logit, 1).shape}")
                     correct_indices = (
                         torch.where(label.to(self.device) == torch.argmax(logit, 1))[0]
                         .detach()
@@ -566,9 +563,11 @@ class VQA:
                         quesid2ans[qid] = ans
                 else:
                     for qid, l in zip(ques_id, label.cpu().numpy()):
-                        if l not in dset.label2ans:
+                        try:
+                            ans = dset.label2ans[l]
+                        except KeyError:
                             print(f"[DEBUG] KeyError: l={l} not in label2ans. Available keys (first 10): {list(dset.label2ans.keys())[:10]}")
-                        ans = dset.label2ans.get(l, f"UNK_{l}")
+                            ans = f"UNK_{l}"
                         quesid2ans[qid] = ans
 
                 # generate and evaluate explanations
