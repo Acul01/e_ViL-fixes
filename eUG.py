@@ -712,16 +712,37 @@ class VQA:
             nb_eval_steps += 1
 
         valid_score, correct_idx = eval_tuple.evaluator.evaluate(quesid2ans)
-        nlg_weight = correct_idx.count(1) / len(
-            correct_idx
-        )  # because for vqa-x we also take half-correct answers
+        nlg_weight = correct_idx.count(1) / len(correct_idx)  # because for vqa-x we also take half-correct answers
 
         # getting perplexity
         expl_loss = expl_loss / nb_eval_steps
         perplexity = torch.exp(torch.tensor(expl_loss)).item()
 
-        if "bb" not in train_type and len(all_generated_explanations) != 0:
+        # Write input records as pandas DataFrame and save as CSV and Excel
+        import pandas as pd
+        records = []
+        for rec in test_output:
+            correct_expl = rec["correct_explanations"]
+            if isinstance(correct_expl, list):
+                correct_expl = " | ".join(correct_expl)
+            gt_val = rec["gt"]
+            if isinstance(gt_val, dict):
+                gt_val = " | ".join([f"{k}:{v}" for k, v in gt_val.items()])
+            records.append({
+                "question_id": rec.get("question_id", ""),
+                "question": rec.get("question", ""),
+                "generated_explanation": rec.get("generated_explanation", ""),
+                "correct_explanations": correct_expl,
+                "prediction": rec.get("prediction", ""),
+                "gt": gt_val
+            })
+        df = pd.DataFrame(records)
+        csv_path = os.path.join(args.output, "input_records.csv")
+        excel_path = os.path.join(args.output, "input_records.xlsx")
+        df.to_csv(csv_path, index=False)
+        df.to_excel(excel_path, index=False)
 
+        if "bb" not in train_type and len(all_generated_explanations) != 0:
             # getting NLG metrics
             nlg_global_scores = get_nlg_scores(
                 self.dtype,
