@@ -268,9 +268,11 @@ class VQA:
         step_per_eval = 0
 
         for epoch in range(args.epochs):
+            print(f"[DEBUG] Starte Epoche {epoch+1}/{args.epochs}")
             quesid2ans = {}
             missing_labels_all = set()
             out_of_range_labels = set()
+            batch_count = 0
             for i, (
                 ques_id,
                 feats,
@@ -280,6 +282,8 @@ class VQA:
                 expl,
                 answer_choices,
             ) in iter_wrapper(enumerate(loader)):
+                batch_count += 1
+                print(f"[DEBUG] Epoche {epoch+1}, Batch {batch_count}")
 
                 self.model.train()
                 self.optim.zero_grad()
@@ -371,6 +375,8 @@ class VQA:
                 tt_loss += float(task_loss)
                 te_loss += float(expl_loss)
                 step_per_eval += 1
+
+            print(f"[DEBUG] Epoche {epoch+1} abgeschlossen, Batches: {batch_count}")
 
         # Am Ende: fehlende Labels gesammelt ausgeben
         if missing_labels_all:
