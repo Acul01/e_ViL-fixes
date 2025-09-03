@@ -593,64 +593,24 @@ class VQA:
                 model_dict = answers
             else:
                 model_dict = dset.label2ans
-
-            # --- MAPPING DEBUG: nur 1x ausgeben ---
-            if not hasattr(self, "_printed_map_debug"):
-                import json, os, hashlib
-
+            
+            #### --FIX
+            if not hasattr(self, "_ds_index_list"):
                 def to_index_list(l2a_obj):
-                    # -> returns a list where index i gives the answer string
                     if isinstance(l2a_obj, list):
                         return l2a_obj
                     if isinstance(l2a_obj, dict):
-                        # Keys können str oder int sein; wir bauen eine dichte Liste 0..N-1
-                        idx_vals = []
-                        for k, v in l2a_obj.items():
-                            try:
-                                idx = int(k)
-                            except Exception:
-                                continue
-                            idx_vals.append((idx, v))
-                        if not idx_vals:
-                            raise ValueError("label2ans hat keine numerischen Keys")
-                        n = max(i for i, _ in idx_vals) + 1
-                        out = [None] * n
-                        for i, v in idx_vals:
-                            if 0 <= i < n:
-                                out[i] = v
-                        # Falls Lücken vorhanden waren, ersatzweise mit "" füllen
-                        out = [x if x is not None else "" for x in out]
+                        n = len(l2a_obj)
+                        out = [None]*n
+                        for k,v in l2a_obj.items():
+                            out[int(k)] = v
                         return out
-                    raise TypeError(f"Unerwarteter Typ für label2ans: {type(l2a_obj)}")
+                    raise TypeError(f"unexpected label2ans type: {type(l2a_obj)}")
 
-                # 1) Mapping aus dem Dataset (GENAU das, was klassifiziert wird)
                 ds_l2a = dset.label2ans
-                ds_list = to_index_list(ds_l2a)
+                self._ds_index_list = to_index_list(ds_l2a)   # <- merken für später
 
-                # 2) Mapping aus Datei (achte: nimm die Datei, die dein Dataset tatsächlich lädt)
-                file_l2a_path = "data/label2ans.json"  # ggf. "data/trainval_label2ans.json"
-                file_l2a = json.load(open(file_l2a_path))
-                file_list = to_index_list(file_l2a)
-
-                def md5(p): 
-                    return hashlib.md5(open(p,'rb').read()).hexdigest() if os.path.exists(p) else "MISSING"
-
-                def safe_index(lst, val):
-                    try:
-                        return lst.index(val)
-                    except ValueError:
-                        return None
-
-                print("[MAP] dset.label2ans[0:10]:", ds_list[:10])
-                print("[MAP] file label2ans[0:10]:", file_list[:10])
-                print("[MAP] len(dset)=", len(ds_list),
-                    "| idx('produce') in dset:", safe_index(ds_list, "produce"))
-                print("[MAP] len(file)=", len(file_list),
-                    "| idx('produce') in file:", safe_index(file_list, "produce"))
-                print("[MAP] file md5:", file_l2a_path, md5(file_l2a_path))
-
-                self._printed_map_debug = True
-            # --- ENDE MAPPING DEBUG ---
+            ####
 
             if self.dtype == "vqax":  # multiple explanations
                 triple_expl = [[x[y] for x in expl] for y in range(len(expl[0]))]
@@ -668,21 +628,21 @@ class VQA:
                     visual_representations,
                 ) = self.model(feats, boxes, sent, expl, answers, model_dict, gt)
                 
-                ### DEBUG
-                print("[DBGGi] logit type:", type(logit))
-                if isinstance(logit, torch.Tensor):
-                    print("[DBG] logit shape:", tuple(logit.shape))
-                if isinstance(expl_output, dict):
-                    print("[DBG] expl_output keys:", list(expl_output.keys()))
-                    cand = [(k, v.shape) for k, v in expl_output.items()
-                            if hasattr(v, "dim") and v.dim() == 2]
-                    print("[DBG] 2D tensors in expl_output:", cand)
-                elif isinstance(expl_output, (list, tuple)):
-                    print("[DBG] expl_output types:", [type(x) for x in expl_output])
-                    print("[DBG] expl_output shapes:", [tuple(x.shape) for x in expl_output if hasattr(x,"shape")])
-                else:
-                    print("[DBG] expl_output type:", type(expl_output))
-                ### END DEBUG
+                #### --FIX
+                ds_list = self._ds_index_list
+
+                assert logit.dim() == 2 and logit.size(-1) == len(ds_list), \
+                    f"logit last dim {logit.size(-1)} != #labels {len(ds_list)}"
+
+                # logits -> Wahrscheinlichkeiten (BCE-Setup); für argmax egal, aber anschaulicher
+                probs = torch.sigmoid(logit)           # shape: (B, 1658)
+                top1_idx = probs.argmax(dim=-1).tolist()
+                pred_txt = [ds_list[i] for i in top1_idx]   # <- **HIER das richtige Mapping**
+
+                for qid, ans in zip(ques_id, pred_txt):
+                    quesid2ans[qid] = ans
+
+                ####
 
                 # get indices for when to generate explanations
                 if self.dtype == "vqax":
