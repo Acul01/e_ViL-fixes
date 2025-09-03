@@ -886,8 +886,7 @@ class VQA:
                 top1_idx = probs.argmax(dim=-1).tolist()
 
                 ds_l2a = dset.label2ans
-                ds_list = ( [ds_l2a[str(i)] for i in range(len(ds_l2a))] 
-                            if isinstance(ds_l2a, dict) else list(ds_l2a) )
+                ds_list = [ds_l2a[i] for i in range(len(ds_l2a))]
 
                 pred_txt = [ds_list[i] for i in top1_idx]   # <- **HIER das richtige Mapping**
 
