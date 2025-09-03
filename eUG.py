@@ -308,12 +308,15 @@ class VQA:
         # ----- Loss wie gehabt -----
         if not args.test:
             if self.dtype == "vqax":
-                self.loss_func = nn.BCEWithLogitsLoss()
+                #import numpy as np, torch
+                fw = (self.class_freq if hasattr(self, "class_freq") else None)
+                if fw is None:
+                    fw = np.ones(self.model.answer_head.out_features, dtype=np.float32)
+                fw[fw == 0] = 1.0
+                pos_weight = torch.tensor(1.0 / np.sqrt(fw), dtype=torch.float32, device=self.device)
+                self.loss_func = nn.BCEWithLogitsLoss(pos_weight=pos_weight)
             else:
                 self.loss_func = nn.CrossEntropyLoss()
-
-            batch_per_epoch = len(self.train_tuple.loader) / args.grad_accum
-            t_total = int(batch_per_epoch * args.epochs)
 
             # ===== NEU: Parametergroups bauen =====
             # (Optional) Encoder einfrieren – beschleunigt Head-Finetune:
