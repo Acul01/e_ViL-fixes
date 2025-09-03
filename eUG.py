@@ -546,40 +546,34 @@ class VQA:
 
                 # --- Debug vor backward ---
                 l2_before = float(self.model.answer_head.weight.norm())
-                print(f"[DBG] head weight L2 before: {l2_before:.9f}")
+                print(f"[DBG] head L2 before: {l2_before:.9f}")
                 print("[DBG-gradfn] logit.requires_grad:", logit.requires_grad, "grad_fn:", logit.grad_fn)
 
+                # Für Delta-Messung: Kopie vor dem Step
+                with torch.no_grad():
+                    w_before = self.model.answer_head.weight.detach().clone()
+
+                # Backward
                 loss.backward()
 
-                ###debug
-                g = getattr(self.model.answer_head.weight, "grad", None)
-                print("[DBG] loss:", float(loss.item()),
-                    "grad_norm(head):", (float(g.norm()) if g is not None else "None"))
+                # (optional) Grad-Clipping
+                # torch.nn.utils.clip_grad_norm_(self.model.parameters(), 5.0)
 
-                with torch.no_grad():
-                    w = self.model.answer_head.weight
-                    g = w.grad
-                    # Manuelle SGD auf den Head, um jeden Scheduler/Clipping-Effekt auszuschalten
-                    eta = 1e-3
-                    w.copy_(w - eta * g)
-                    print("[DBG] manual step ΔL2:", float(self.model.answer_head.weight.norm()) - float(l2_before))
-                    
+                # Grad-Check (einmal)
+                g = self.model.answer_head.weight.grad
+                print("[DBG] loss:", float(loss.item()),
+                    " grad_norm(head):", (float(g.norm()) if g is not None else "None"))
+
+                # Optimizer-Step
                 self.optim.step()
 
-                # --- Debug nach step ---
+                # --- Debug nach step (einmal) ---
                 with torch.no_grad():
-                    l2_after = float(self.model.answer_head.weight.norm())
-                    print(f"[DBG] head L2 after: {l2_after:.9f}  Δ: {l2_after - l2_before:.9e}")
-
-                with torch.no_grad():
-                    print("[DBG] head L2 after:", float(self.model.answer_head.weight.norm()))
-
-                # --- Debug-Block ---
-                with torch.no_grad():
-                    # 1) Gradienten-Norm des Heads
-                    g = self.model.answer_head.weight.grad
-                    print("[DBG] loss:", float(loss.item()),
-                        " grad_norm(head):", (float(g.norm()) if g is not None else "None"))
+                    w_after   = self.model.answer_head.weight
+                    delta_norm = float((w_after - w_before).norm())
+                    delta_max  = float((w_after - w_before).abs().max())
+                    l2_after   = float(w_after.norm())
+                    print(f"[DBG] Δ‖W‖: {delta_norm:.3e} | Δmax: {delta_max:.3e} | ‖W‖ after: {l2_after:.9f}  ΔL2: {l2_after - l2_before:.9e}")
 
                 if self.dtype == "vcr":
                     logit = binary_to_mp(logit)
