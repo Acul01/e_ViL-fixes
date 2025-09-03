@@ -230,6 +230,7 @@ class VQA:
         self.model = self.model.to(self.device)
 
         # Loss and Optimizer
+        # ----- Loss wie gehabt -----
         if not args.test:
             if self.dtype == "vqax":
                 self.loss_func = nn.BCEWithLogitsLoss()
@@ -239,23 +240,45 @@ class VQA:
             batch_per_epoch = len(self.train_tuple.loader) / args.grad_accum
             t_total = int(batch_per_epoch * args.epochs)
 
+            # ===== NEU: Parametergroups bauen =====
+            # (Optional) Encoder einfrieren – beschleunigt Head-Finetune:
+            freeze_encoder = True  # für schnellen sanity-run; ggf. auf False setzen
+            if freeze_encoder and hasattr(self.model, "uniter"):
+                for p in self.model.uniter.parameters():
+                    p.requires_grad = False
+
+            # Head- & Basis-Parameter trennen
+            head_params = list(self.model.answer_head.parameters())
+            base_params = [p for n, p in self.model.named_parameters()
+                        if p.requires_grad and not n.startswith("answer_head.")]
+
+            # höhere LR für den frisch initialisierten Head
+            head_lr = getattr(args, "head_lr", max(5 * args.lr, 5e-4))
+
+            param_groups = [
+                {"params": base_params, "lr": args.lr},
+                {"params": head_params, "lr": head_lr},
+            ]
+            # ===== ENDE Parametergroups =====
+
             if "bert" in args.optim:
                 print("BertAdam Total Iters: %d" % t_total)
                 from src.optimization import BertAdam
-
+                # WICHTIG: keine globale lr mehr übergeben, Gruppen haben eigene lr
                 self.optim = BertAdam(
-                    list(self.model.parameters()),
-                    lr=args.lr,
+                    param_groups,
                     warmup=0.1,
                     t_total=t_total,
                 )
             else:
-                self.optim = args.optimizer(self.model.parameters(), args.lr)
+                # WICHTIG: auch hier param_groups statt model.parameters() und OHNE globale lr
+                self.optim = args.optimizer(param_groups)
                 self.scheduler = get_linear_schedule_with_warmup(
                     self.optim,
                     num_warmup_steps=args.warmup_steps,
                     num_training_steps=t_total,
                 )
+
         self.grad_accum = args.grad_accum
 
         # Output Directory
