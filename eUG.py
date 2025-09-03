@@ -598,35 +598,57 @@ class VQA:
             if not hasattr(self, "_printed_map_debug"):
                 import json, os, hashlib
 
-                # 1) Mapping aus dem Dataset (GENAU das, was zum Klassifizieren benutzt wird)
+                def to_index_list(l2a_obj):
+                    # -> returns a list where index i gives the answer string
+                    if isinstance(l2a_obj, list):
+                        return l2a_obj
+                    if isinstance(l2a_obj, dict):
+                        # Keys können str oder int sein; wir bauen eine dichte Liste 0..N-1
+                        idx_vals = []
+                        for k, v in l2a_obj.items():
+                            try:
+                                idx = int(k)
+                            except Exception:
+                                continue
+                            idx_vals.append((idx, v))
+                        if not idx_vals:
+                            raise ValueError("label2ans hat keine numerischen Keys")
+                        n = max(i for i, _ in idx_vals) + 1
+                        out = [None] * n
+                        for i, v in idx_vals:
+                            if 0 <= i < n:
+                                out[i] = v
+                        # Falls Lücken vorhanden waren, ersatzweise mit "" füllen
+                        out = [x if x is not None else "" for x in out]
+                        return out
+                    raise TypeError(f"Unerwarteter Typ für label2ans: {type(l2a_obj)}")
+
+                # 1) Mapping aus dem Dataset (GENAU das, was klassifiziert wird)
                 ds_l2a = dset.label2ans
-                if isinstance(ds_l2a, dict):
-                    ds_list = [ds_l2a[str(i)] for i in range(len(ds_l2a))]
-                else:
-                    ds_list = list(ds_l2a)
+                ds_list = to_index_list(ds_l2a)
 
                 # 2) Mapping aus Datei (achte: nimm die Datei, die dein Dataset tatsächlich lädt)
-                file_l2a_path = "data/label2ans.json"  # oder "data/trainval_label2ans.json", falls ihr die verwendet
+                file_l2a_path = "data/label2ans.json"  # ggf. "data/trainval_label2ans.json"
                 file_l2a = json.load(open(file_l2a_path))
-                if isinstance(file_l2a, dict):
-                    file_list = [file_l2a[str(i)] for i in range(len(file_l2a))]
-                else:
-                    file_list = list(file_l2a)
+                file_list = to_index_list(file_l2a)
 
                 def md5(p): 
                     return hashlib.md5(open(p,'rb').read()).hexdigest() if os.path.exists(p) else "MISSING"
 
+                def safe_index(lst, val):
+                    try:
+                        return lst.index(val)
+                    except ValueError:
+                        return None
+
                 print("[MAP] dset.label2ans[0:10]:", ds_list[:10])
                 print("[MAP] file label2ans[0:10]:", file_list[:10])
                 print("[MAP] len(dset)=", len(ds_list),
-                    "| idx('produce') in dset:",
-                    (ds_list.index('produce') if 'produce' in ds_list else None))
+                    "| idx('produce') in dset:", safe_index(ds_list, "produce"))
                 print("[MAP] len(file)=", len(file_list),
-                    "| idx('produce') in file:",
-                    (file_list.index('produce') if 'produce' in file_list else None))
+                    "| idx('produce') in file:", safe_index(file_list, "produce"))
                 print("[MAP] file md5:", file_l2a_path, md5(file_l2a_path))
 
-                # einmalig flaggen, damit das nicht jeden Batch spammt
                 self._printed_map_debug = True
             # --- ENDE MAPPING DEBUG ---
 
