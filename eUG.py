@@ -318,6 +318,10 @@ class VQA:
             else:
                 self.loss_func = nn.CrossEntropyLoss()
 
+            # --- Scheduler-Parameter (MUSS vor dem Optimizer definiert sein) ---
+            batch_per_epoch = len(self.train_tuple.loader) / args.grad_accum
+            t_total = int(batch_per_epoch * args.epochs)
+
             # ===== NEU: Parametergroups bauen =====
             # (Optional) Encoder einfrieren – beschleunigt Head-Finetune:
             freeze_encoder = True  # für schnellen sanity-run; ggf. auf False setzen
