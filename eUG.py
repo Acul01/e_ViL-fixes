@@ -217,7 +217,7 @@ class VQA:
 
 
         # --- Bias-Init mit Klassenprior ---
-        import json, numpy as np, torch
+        #import json, numpy as np, torch
 
         def _compute_class_freq(json_path, a2l_path, num_labels):
             a2l = json.load(open(a2l_path))
