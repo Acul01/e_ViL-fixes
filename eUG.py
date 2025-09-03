@@ -640,7 +640,9 @@ class VQA:
                 pred_txt = [ds_list[i] for i in top1_idx]   # <- **HIER das richtige Mapping**
 
                 for qid, ans in zip(ques_id, pred_txt):
-                    quesid2ans[qid] = ans
+                    if hasattr(qid, "item"):  # Torch/Numpy
+                        qid = qid.item()
+                    quesid2ans[str(qid)] = ans
 
                 ####
 
