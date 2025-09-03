@@ -324,6 +324,7 @@ class VQA:
             else:
                 self.loss_func = nn.CrossEntropyLoss()
 
+            '''
             # --- Scheduler-Parameter (MUSS vor dem Optimizer definiert sein) ---
             batch_per_epoch = len(self.train_tuple.loader) / args.grad_accum
             t_total = int(batch_per_epoch * args.epochs)
@@ -377,6 +378,44 @@ class VQA:
                     num_warmup_steps=args.warmup_steps,
                     num_training_steps=t_total,
                 )
+            '''
+
+            # alternativ opt debug
+            # --- Scheduler-Parameter (MUSS vor dem Optimizer definiert sein) ---
+            batch_per_epoch = len(self.train_tuple.loader) / args.grad_accum
+            t_total = int(batch_per_epoch * args.epochs)
+
+            # ===== Parametergroups bauen =====
+            # (Optional) Encoder einfrieren – beschleunigt Head-Finetune / spart VRAM
+            freeze_encoder = True  # für schnellen sanity-run; ggf. False wenn du den Encoder mittrainieren willst
+            if freeze_encoder and hasattr(self.model, "uniter"):
+                for p in self.model.uniter.parameters():
+                    p.requires_grad = False
+
+            # Head- & Basis-Parameter trennen
+            head_params = list(self.model.answer_head.parameters())
+            base_params = [p for n, p in self.model.named_parameters()
+                        if p.requires_grad and not n.startswith("answer_head.")]
+
+            base_lr = args.lr              # z. B. 2e-5
+            head_lr = 1e-3                 # höher, damit der Head sichtbar lernt
+
+            param_groups = [
+                {"params": base_params, "lr": base_lr, "weight_decay": 1e-2},
+                {"params": head_params,  "lr": head_lr, "weight_decay": 0.0},
+            ]
+            # ===== ENDE Parametergroups =====
+
+            # --- Optimizer: PyTorch Adam (NICHT BertAdam!) ---
+            self.optim = torch.optim.Adam(param_groups)
+
+            # --- Scheduler (kann bleiben) ---
+            self.scheduler = get_linear_schedule_with_warmup(
+                self.optim,
+                num_warmup_steps=args.warmup_steps,
+                num_training_steps=t_total,
+            )
+            ### alternative opt debug ende
 
             import os, sys
             lines = []
