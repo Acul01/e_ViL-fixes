@@ -859,12 +859,36 @@ class VQA:
                 #### --FIX
                 ds_list = self._ds_index_list
 
+                # --- ERZWINGE: unsere Logits kommen aus dem answer_head ---
+                rep = visual_representations
+                if rep is None and isinstance(expl_output, dict):
+                    rep = (expl_output.get("cls_feats")
+                        or expl_output.get("pooled_output")
+                        or expl_output.get("joint") or None)
+                if rep is None:
+                    raise RuntimeError("Kein Repräsentations-Tensor (visual/pooled) aus dem Forward erhalten.")
+
+                rep = rep if torch.is_tensor(rep) else torch.as_tensor(rep, device=self.device)
+                if rep.dim() == 3:
+                    rep = rep.mean(dim=1)
+                elif rep.dim() != 2:
+                    raise RuntimeError(f"Unerwartete rep-Shape: {tuple(rep.shape)}")
+
+                logit = self.model.answer_head(rep)   # <- ab hier garantiert dein Kopf
+                ###end
+
+
                 assert logit.dim() == 2 and logit.size(-1) == len(ds_list), \
                     f"logit last dim {logit.size(-1)} != #labels {len(ds_list)}"
 
                 # logits -> Wahrscheinlichkeiten (BCE-Setup); für argmax egal, aber anschaulicher
                 probs = torch.sigmoid(logit)           # shape: (B, 1658)
                 top1_idx = probs.argmax(dim=-1).tolist()
+
+                ds_l2a = dset.label2ans
+                ds_list = ( [ds_l2a[str(i)] for i in range(len(ds_l2a))] 
+                            if isinstance(ds_l2a, dict) else list(ds_l2a) )
+
                 pred_txt = [ds_list[i] for i in top1_idx]   # <- **HIER das richtige Mapping**
 
                 # ---- QID Normalisierung: Typ von id2datum ableiten ----
