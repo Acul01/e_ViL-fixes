@@ -198,6 +198,25 @@ class VQA:
         # Model
         self.model = eUGModel(self.train_type, num_answers, self.dtype, args.model)
 
+        ### DEBUG
+        import json, os, torch.nn as nn
+
+        # label2ans laden (dein Mapping mit 1658 Klassen)
+        l2a_path = "data/label2ans.json"
+        assert os.path.exists(l2a_path), f"label2ans fehlt: {l2a_path}"
+        label2ans = json.load(open(l2a_path))
+        num_labels = len(label2ans)
+
+        # Hidden-Dim aus Model ableiten (falls möglich), sonst fallback
+        hidden = getattr(self.model, "hidden_size", None) or 768  # 1024 für UNITER-large
+
+        if not hasattr(self.model, "answer_head"):
+            self.model.answer_head = nn.Linear(hidden, num_labels)
+
+        print(f"[DBG] Answer head out_dim={num_labels}, hidden={hidden}")
+
+
+
         # Load pre-trained weights
         if self.train_type == "expl" and args.BBPath is not None:
             self.model.load_state_dict(torch.load(args.BBPath))
