@@ -570,6 +570,22 @@ class VQA:
                     token_type_ids,
                     visual_representations,
                 ) = self.model(feats, boxes, sent, expl, answers, model_dict, gt)
+                
+                ### DEBUG
+                print("[DBG] logit type:", type(logit))
+                if isinstance(logit, torch.Tensor):
+                    print("[DBG] logit shape:", tuple(logit.shape))
+                if isinstance(expl_output, dict):
+                    print("[DBG] expl_output keys:", list(expl_output.keys()))
+                    cand = [(k, v.shape) for k, v in expl_output.items()
+                            if hasattr(v, "dim") and v.dim() == 2]
+                    print("[DBG] 2D tensors in expl_output:", cand)
+                elif isinstance(expl_output, (list, tuple)):
+                    print("[DBG] expl_output types:", [type(x) for x in expl_output])
+                    print("[DBG] expl_output shapes:", [tuple(x.shape) for x in expl_output if hasattr(x,"shape")])
+                else:
+                    print("[DBG] expl_output type:", type(expl_output))
+                ### END DEBUG
 
                 # get indices for when to generate explanations
                 if self.dtype == "vqax":
