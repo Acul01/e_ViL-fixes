@@ -500,6 +500,9 @@ class VQA:
 
                 loss_multiplier = 1
 
+                # Standard-Gewichte, falls nicht explizit überschrieben
+                loss_weights = {"task": 1.0, "expl": 1.0}
+
                 if self.train_type == "all":
                     target = target.to(logit.device).to(logit.dtype)  # float32
                     loss = self.loss_func(logit, target)              # KEINE weitere Skalierung
