@@ -332,6 +332,22 @@ class VQA:
 
                 expl_gt = target
 
+                # === DEBUG Targets ===
+                print("[DBG][TRAIN] target shape:", tuple(target.shape),
+                    " batch sum:", float(target.sum()),
+                    " pos-per-sample:", [float(x.sum()) for x in target[:4]])
+
+                # positive Indizes der ersten 2 Samples zeigen
+                for si in range(min(2, target.size(0))):
+                    pos = (target[si] > 0).nonzero(as_tuple=True)[0].tolist()
+                    print(f"[DBG][TRAIN] sample {si} positive idx:", pos[:10], "… count:", len(pos))
+
+                with torch.no_grad():
+                    print("[DBG] head weight L2 before:",
+                        float(self.model.answer_head.weight.norm()))
+            
+
+
                 if self.dtype == "vcr":
                     model_dict = answer_choices
                     target = target.flatten()
