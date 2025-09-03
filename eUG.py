@@ -499,6 +499,16 @@ class VQA:
             tokenizer = VCRGpt2Tokenizer.from_pretrained("gpt2")
             gen_model = self.model.decoder.model.to(self.device)
 
+        first = next(iter(loader))
+        for k,v in first.items():
+            if any(s in k.lower() for s in ["feat","visual","img"]):
+                import torch
+                x = v[0] if isinstance(v,(list,tuple)) else v
+                x = x if torch.is_tensor(x) else torch.as_tensor(x)
+                print(f"[DBG] BATCH[{k}] shape={tuple(x.shape)} mean={float(x.float().mean())}")
+                break
+
+
         for i, datum_tuple in enumerate(loader):
             ques_id, feats, boxes, sent, label, expl, answers = datum_tuple
             # Print predictions and ground truth labels for comparison
