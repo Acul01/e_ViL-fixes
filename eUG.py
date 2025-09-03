@@ -320,7 +320,7 @@ class VQA:
                     fw = np.ones(self.model.answer_head.out_features, dtype=np.float32)
                 fw[fw == 0] = 1.0
                 pos_weight = torch.tensor(1.0 / np.sqrt(fw), dtype=torch.float32, device=self.device)
-                self.loss_func = nn.BCEWithLogitsLoss(pos_weight=pos_weight)
+                self.loss_func = nn.BCEWithLogitsLoss(pos_weight=pos_weight, reduction='mean')
             else:
                 self.loss_func = nn.CrossEntropyLoss()
 
@@ -353,6 +353,17 @@ class VQA:
                 print("BertAdam Total Iters: %d" % t_total)
                 from src.optimization import BertAdam
                 # WICHTIG: keine globale lr mehr übergeben, Gruppen haben eigene lr
+
+                base_lr = args.lr
+                head_lr = max(5 * args.lr, 5e-4)   # z. B. 5x höher oder fix 1e-3
+
+                param_groups = [
+                    {"params": [p for n,p in self.model.named_parameters()
+                                if p.requires_grad and not n.startswith("answer_head.")],
+                    "lr": base_lr, "weight_decay": 1e-2},
+                    {"params": list(self.model.answer_head.parameters()),
+                    "lr": head_lr, "weight_decay": 0.0},
+]
                 self.optim = BertAdam(
                     param_groups,
                     warmup=0.1,
@@ -367,11 +378,12 @@ class VQA:
                     num_training_steps=t_total,
                 )
 
+            # --- Debug Optimizer Groups ---
             print("Optim-Paramgroups:")
-            head_params = list(self.model.answer_head.parameters())
             for i, grp in enumerate(self.optim.param_groups):
-                cnt_head = sum(p is q for q in head_params for p in grp["params"])
-                print(f"  Group {i}: lr={grp['lr']}, #params={len(grp['params'])}, head_params_in_group={cnt_head}")
+                cnt_head = sum(p is q for q in self.model.answer_head.parameters() for p in grp["params"])
+                print(f"  Group {i}: lr={grp['lr']}, weight_decay={grp.get('weight_decay', 0)}, "
+                    f"#params={len(grp['params'])}, head_params_in_group={cnt_head}")
 
         self.grad_accum = args.grad_accum
 
@@ -436,11 +448,6 @@ class VQA:
                     pos = (target[si] > 0).nonzero(as_tuple=True)[0].tolist()
                     print(f"[DBG][TRAIN] sample {si} positive idx:", pos[:10], "… count:", len(pos))
 
-                with torch.no_grad():
-                    print("[DBG] head weight L2 before:",
-                        float(self.model.answer_head.weight.norm()))
-            
-
 
                 if self.dtype == "vcr":
                     model_dict = answer_choices
@@ -494,16 +501,22 @@ class VQA:
                 loss_multiplier = 1
 
                 if self.train_type == "all":
-                    target = target.to(logit.device).to(logit.dtype)   # BCE -> float
+                    target = target.to(logit.device).to(logit.dtype)  # float32
+                    loss = self.loss_func(logit, target)              # KEINE weitere Skalierung
 
                     task_loss = self.loss_func(logit, target)  
                     expl_loss = expl_output[0]
+
+                    # zur vereinfachung nur einfachen loss, nicht gewichtet
+                    '''
                     # loss_weights = dwa(prev_losses, temp=args.temperature)
                     loss_weights = {"task": 1, "expl": 1}
                     # loss = loss_weights['task']*task_loss + loss_weights['expl']*expl_loss
                     loss = weighted_loss(
                         task_loss, expl_loss, loss_weights, args.classifier_weight
                     )
+                    '''
+
                     loss /= self.grad_accum
 
                     prev_task += float(task_loss)
@@ -528,6 +541,11 @@ class VQA:
                     task_loss = 0
                     expl_loss = float(loss)
 
+                # --- Debug vor backward ---
+                l2_before = float(self.model.answer_head.weight.norm())
+                print(f"[DBG] head weight L2 before: {l2_before:.9f}")
+                print("[DBG-gradfn] logit.requires_grad:", logit.requires_grad, "grad_fn:", logit.grad_fn)
+
                 loss.backward()
 
                 ###debug
@@ -535,7 +553,20 @@ class VQA:
                 print("[DBG] loss:", float(loss.item()),
                     "grad_norm(head):", (float(g.norm()) if g is not None else "None"))
 
+                with torch.no_grad():
+                    w = self.model.answer_head.weight
+                    g = w.grad
+                    # Manuelle SGD auf den Head, um jeden Scheduler/Clipping-Effekt auszuschalten
+                    eta = 1e-3
+                    w.copy_(w - eta * g)
+                    print("[DBG] manual step ΔL2:", float(self.model.answer_head.weight.norm()) - float(l2_before))
+                    
                 self.optim.step()
+
+                # --- Debug nach step ---
+                with torch.no_grad():
+                    l2_after = float(self.model.answer_head.weight.norm())
+                    print(f"[DBG] head L2 after: {l2_after:.9f}  Δ: {l2_after - l2_before:.9e}")
 
                 with torch.no_grad():
                     print("[DBG] head L2 after:", float(self.model.answer_head.weight.norm()))
