@@ -386,8 +386,8 @@ class VQA:
             t_total = int(batch_per_epoch * args.epochs)
 
             # ===== Parametergroups bauen =====
-            # (Optional) Encoder einfrieren – beschleunigt Head-Finetune / spart VRAM
-            freeze_encoder = True  # für schnellen sanity-run; ggf. False wenn du den Encoder mittrainieren willst
+            # (Optional) Encoder einfrieren – beschleunigt Head-Finetune:
+            freeze_encoder = True  # für sanity-run; später False setzen, wenn du den Encoder feintunen willst
             if freeze_encoder and hasattr(self.model, "uniter"):
                 for p in self.model.uniter.parameters():
                     p.requires_grad = False
@@ -397,45 +397,45 @@ class VQA:
             base_params = [p for n, p in self.model.named_parameters()
                         if p.requires_grad and not n.startswith("answer_head.")]
 
-            base_lr = args.lr              # z. B. 2e-5
-            head_lr = 1e-3                 # höher, damit der Head sichtbar lernt
+            # Lernraten FEST setzen (nicht aus args übernehmen, um jede Seiteneffekte auszuschließen)
+            base_lr = 2e-5
+            head_lr = 1e-3
 
             param_groups = [
                 {"params": base_params, "lr": base_lr, "weight_decay": 1e-2},
                 {"params": head_params,  "lr": head_lr, "weight_decay": 0.0},
             ]
-            # ===== ENDE Parametergroups =====
 
-            # --- Optimizer: PyTorch Adam (NICHT BertAdam!) ---
+            # --- Optimizer: PyTorch Adam (NICHT BertAdam, NICHT args.optimizer) ---
             self.optim = torch.optim.Adam(param_groups)
 
-            # --- Scheduler (kann bleiben) ---
-            self.scheduler = get_linear_schedule_with_warmup(
-                self.optim,
-                num_warmup_steps=args.warmup_steps,
-                num_training_steps=t_total,
-            )
-            ### alternative opt debug ende
-
-            import os, sys
-            lines = []
-            lines.append("Optim-Paramgroups:")
-            head_params = list(self.model.answer_head.parameters())
+            # 1) Debug VOR Scheduler: sicherstellen, dass LRs korrekt sind
+            print("Optim-Paramgroups (before scheduler):", flush=True)
             for i, grp in enumerate(self.optim.param_groups):
                 cnt_head = sum(p is q for q in head_params for p in grp["params"])
-                lines.append(f"  Group {i}: lr={grp['lr']}, weight_decay={grp.get('weight_decay', 0)}, "
-                            f"#params={len(grp['params'])}, head_params_in_group={cnt_head}")
+                print(f"  Group {i}: lr={grp['lr']}, weight_decay={grp.get('weight_decay', 0)}, "
+                    f"#params={len(grp['params'])}, head_params_in_group={cnt_head}", flush=True)
 
-            msg = "\n".join(lines)
+            # --- WICHTIG: Scheduler testweise AUSSCHALTEN ---
+            self.scheduler = None
 
-            # 1) Konsole (flush!)
-            print(msg, flush=True)
+            # Falls du unbedingt testen willst, ob der Scheduler die LR auf 0 setzt,
+            # kannst du NACH diesem Print den Scheduler aktivieren und NOCHMAL drucken:
+            # from transformers import get_linear_schedule_with_warmup
+            # self.scheduler = get_linear_schedule_with_warmup(self.optim, num_warmup_steps=args.warmup_steps, num_training_steps=t_total)
+            # print("Optim-Paramgroups (after scheduler-creation, before any step):", flush=True)
+            # for i, grp in enumerate(self.optim.param_groups):
+            #     print(f"  Group {i}: lr={grp['lr']}", flush=True)
 
-            # 2) EXTRA-Datei im Output-Ordner -> garantiert sichtbar
+            # Debug zusätzlich in Datei schreiben
+            import os
             os.makedirs(args.output, exist_ok=True)
-            dbg_path = os.path.join(args.output, "optim_debug.txt")
-            with open(dbg_path, "a") as f:
-                f.write(msg + "\n")
+            with open(os.path.join(args.output, "optim_debug.txt"), "a") as f:
+                f.write("Optim-Paramgroups (before scheduler):\n")
+                for i, grp in enumerate(self.optim.param_groups):
+                    cnt_head = sum(p is q for q in head_params for p in grp["params"])
+                    f.write(f"  Group {i}: lr={grp['lr']}, weight_decay={grp.get('weight_decay', 0)}, "
+                            f"#params={len(grp['params'])}, head_params_in_group={cnt_head}\n")
 
         self.grad_accum = args.grad_accum
 
