@@ -572,7 +572,7 @@ class VQA:
                 ) = self.model(feats, boxes, sent, expl, answers, model_dict, gt)
                 
                 ### DEBUG
-                print("[DBG] logit type:", type(logit))
+                print("[DBGGi] logit type:", type(logit))
                 if isinstance(logit, torch.Tensor):
                     print("[DBG] logit shape:", tuple(logit.shape))
                 if isinstance(expl_output, dict):
