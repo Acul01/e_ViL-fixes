@@ -378,12 +378,25 @@ class VQA:
                     num_training_steps=t_total,
                 )
 
-            # --- Debug Optimizer Groups ---
-            print("Optim-Paramgroups:")
+            import os, sys
+            lines = []
+            lines.append("Optim-Paramgroups:")
+            head_params = list(self.model.answer_head.parameters())
             for i, grp in enumerate(self.optim.param_groups):
-                cnt_head = sum(p is q for q in self.model.answer_head.parameters() for p in grp["params"])
-                print(f"  Group {i}: lr={grp['lr']}, weight_decay={grp.get('weight_decay', 0)}, "
-                    f"#params={len(grp['params'])}, head_params_in_group={cnt_head}")
+                cnt_head = sum(p is q for q in head_params for p in grp["params"])
+                lines.append(f"  Group {i}: lr={grp['lr']}, weight_decay={grp.get('weight_decay', 0)}, "
+                            f"#params={len(grp['params'])}, head_params_in_group={cnt_head}")
+
+            msg = "\n".join(lines)
+
+            # 1) Konsole (flush!)
+            print(msg, flush=True)
+
+            # 2) EXTRA-Datei im Output-Ordner -> garantiert sichtbar
+            os.makedirs(args.output, exist_ok=True)
+            dbg_path = os.path.join(args.output, "optim_debug.txt")
+            with open(dbg_path, "a") as f:
+                f.write(msg + "\n")
 
         self.grad_accum = args.grad_accum
 
