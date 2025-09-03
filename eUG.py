@@ -491,6 +491,13 @@ class VQA:
 
                 loss.backward()
 
+                # --- Debug-Block ---
+                with torch.no_grad():
+                    # 1) Gradienten-Norm des Heads
+                    g = self.model.answer_head.weight.grad
+                    print("[DBG] loss:", float(loss.item()),
+                        " grad_norm(head):", (float(g.norm()) if g is not None else "None"))
+
                 if self.dtype == "vcr":
                     logit = binary_to_mp(logit)
 
@@ -536,6 +543,10 @@ class VQA:
             self.optim.step()
             if args.optim != "bert":
                 self.scheduler.step()  # Update learning rate schedule
+
+            with torch.no_grad():
+                # 2) L2-Norm des Gewichts nach dem Step (muss sich ändern!)
+                print("[DBG] head L2 after:", float(self.model.answer_head.weight.norm()))
 
             # logging
             tb_writer.add_scalar("task loss", task_loss, global_step)
