@@ -216,6 +216,45 @@ class VQA:
         print(f"[DBG] Answer head out_dim={num_labels}, hidden={hidden}")
 
 
+        # --- Bias-Init mit Klassenprior ---
+        import json, numpy as np, torch
+
+        def _compute_class_freq(json_path, a2l_path, num_labels):
+            a2l = json.load(open(a2l_path))
+            if isinstance(a2l, list):
+                a2l = {a:i for i,a in enumerate(a2l)}
+            freq = np.zeros(num_labels, dtype=np.float64)
+            for ex in json.load(open(json_path)):
+                lab = ex.get("label") or ex.get("labels") or {}
+                if isinstance(lab, dict):
+                    for ans, score in lab.items():
+                        i = a2l.get(ans)
+                        if i is not None:
+                            freq[i] += float(score)
+                elif isinstance(lab, list):
+                    for ans in lab:
+                        i = a2l.get(ans); 
+                        if i is not None: freq[i] += 1.0
+                elif isinstance(lab, str):
+                    i = a2l.get(lab); 
+                    if i is not None: freq[i] += 1.0
+            return freq
+
+        num_labels = self.model.answer_head.out_features
+        train_json = args.train  # z.B. data/vqax/train_x_3000.json
+        a2l_path  = "data/ans2label.json"    # dein Mapping
+        freq = _compute_class_freq(train_json, a2l_path, num_labels)
+        eps = 1e-3
+        p = (freq + eps) / (freq.sum() + eps * num_labels)
+        prior_bias = np.log(p / (1.0 - p))   # logit-Priores
+
+        with torch.no_grad():
+            self.model.answer_head.bias.copy_(torch.tensor(prior_bias, dtype=self.model.answer_head.bias.dtype, device=self.model.answer_head.bias.device))
+        self.class_freq = freq  # für Schritt 2
+        print("[DBG] init answer_head.bias with class priors")
+        # --- Ende Bias-Init ---
+
+
 
         # Load pre-trained weights
         if self.train_type == "expl" and args.BBPath is not None:
