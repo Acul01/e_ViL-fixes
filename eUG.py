@@ -335,7 +335,7 @@ class VQA:
                         if p.requires_grad and not n.startswith("answer_head.")]
 
             # höhere LR für den frisch initialisierten Head
-            head_lr = getattr(args, "head_lr", max(5 * args.lr, 5e-4))
+            head_lr = max(5 * args.lr, 5e-4)
 
             param_groups = [
                 {"params": base_params, "lr": args.lr},
