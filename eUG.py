@@ -594,6 +594,42 @@ class VQA:
             else:
                 model_dict = dset.label2ans
 
+            # --- MAPPING DEBUG: nur 1x ausgeben ---
+            if not hasattr(self, "_printed_map_debug"):
+                import json, os, hashlib
+
+                # 1) Mapping aus dem Dataset (GENAU das, was zum Klassifizieren benutzt wird)
+                ds_l2a = dset.label2ans
+                if isinstance(ds_l2a, dict):
+                    ds_list = [ds_l2a[str(i)] for i in range(len(ds_l2a))]
+                else:
+                    ds_list = list(ds_l2a)
+
+                # 2) Mapping aus Datei (achte: nimm die Datei, die dein Dataset tatsächlich lädt)
+                file_l2a_path = "data/label2ans.json"  # oder "data/trainval_label2ans.json", falls ihr die verwendet
+                file_l2a = json.load(open(file_l2a_path))
+                if isinstance(file_l2a, dict):
+                    file_list = [file_l2a[str(i)] for i in range(len(file_l2a))]
+                else:
+                    file_list = list(file_l2a)
+
+                def md5(p): 
+                    return hashlib.md5(open(p,'rb').read()).hexdigest() if os.path.exists(p) else "MISSING"
+
+                print("[MAP] dset.label2ans[0:10]:", ds_list[:10])
+                print("[MAP] file label2ans[0:10]:", file_list[:10])
+                print("[MAP] len(dset)=", len(ds_list),
+                    "| idx('produce') in dset:",
+                    (ds_list.index('produce') if 'produce' in ds_list else None))
+                print("[MAP] len(file)=", len(file_list),
+                    "| idx('produce') in file:",
+                    (file_list.index('produce') if 'produce' in file_list else None))
+                print("[MAP] file md5:", file_l2a_path, md5(file_l2a_path))
+
+                # einmalig flaggen, damit das nicht jeden Batch spammt
+                self._printed_map_debug = True
+            # --- ENDE MAPPING DEBUG ---
+
             if self.dtype == "vqax":  # multiple explanations
                 triple_expl = [[x[y] for x in expl] for y in range(len(expl[0]))]
                 expl = expl[0]
