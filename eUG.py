@@ -216,42 +216,78 @@ class VQA:
         print(f"[DBG] Answer head out_dim={num_labels}, hidden={hidden}")
 
 
-        # --- Bias-Init mit Klassenprior ---
-        #import json, numpy as np, torch
+        # --- Bias-Init mit Klassenprior (robust) ---
+        #import os, json, numpy as np, torch
 
-        def _compute_class_freq(json_path, a2l_path, num_labels):
-            a2l = json.load(open(a2l_path))
-            if isinstance(a2l, list):
-                a2l = {a:i for i,a in enumerate(a2l)}
+        def _to_a2l_obj(a2l_obj):
+            # dict (ans->idx) oder Liste (idx->ans) in dict (ans->idx) verwandeln
+            if isinstance(a2l_obj, dict):
+                return a2l_obj
+            if isinstance(a2l_obj, list):
+                return {a: i for i, a in enumerate(a2l_obj)}
+            raise TypeError(f"Unexpected ans2label type: {type(a2l_obj)}")
+
+        def _compute_class_freq_from_list(ex_list, a2l_dict, num_labels):
             freq = np.zeros(num_labels, dtype=np.float64)
-            for ex in json.load(open(json_path)):
+            for ex in ex_list:
                 lab = ex.get("label") or ex.get("labels") or {}
                 if isinstance(lab, dict):
                     for ans, score in lab.items():
-                        i = a2l.get(ans)
+                        i = a2l_dict.get(ans)
                         if i is not None:
                             freq[i] += float(score)
                 elif isinstance(lab, list):
                     for ans in lab:
-                        i = a2l.get(ans); 
-                        if i is not None: freq[i] += 1.0
+                        i = a2l_dict.get(ans)
+                        if i is not None:
+                            freq[i] += 1.0
                 elif isinstance(lab, str):
-                    i = a2l.get(lab); 
-                    if i is not None: freq[i] += 1.0
+                    i = a2l_dict.get(lab)
+                    if i is not None:
+                        freq[i] += 1.0
             return freq
 
-        num_labels = self.model.answer_head.out_features
-        train_json = args.train  # z.B. data/vqax/train_x_3000.json
-        a2l_path  = "data/ans2label.json"    # dein Mapping
-        freq = _compute_class_freq(train_json, a2l_path, num_labels)
-        eps = 1e-3
-        p = (freq + eps) / (freq.sum() + eps * num_labels)
-        prior_bias = np.log(p / (1.0 - p))   # logit-Priores
+        try:
+            num_labels = self.model.answer_head.out_features
 
-        with torch.no_grad():
-            self.model.answer_head.bias.copy_(torch.tensor(prior_bias, dtype=self.model.answer_head.bias.dtype, device=self.model.answer_head.bias.device))
-        self.class_freq = freq  # für Schritt 2
-        print("[DBG] init answer_head.bias with class priors")
+            # ans2label laden (robust)
+            a2l_path = "data/ans2label.json"
+            if not os.path.exists(a2l_path):
+                alt = "data/trainval_ans2label.json"
+                if os.path.exists(alt):
+                    a2l_path = alt
+                else:
+                    raise FileNotFoundError("ans2label.json nicht gefunden")
+            a2l = _to_a2l_obj(json.load(open(a2l_path)))
+
+            # Quelle der Beispiele: bereits geladene Datasets verwenden
+            if not args.test and hasattr(self, "train_tuple"):
+                ex_list = self.train_tuple.dataset.data
+            elif hasattr(self, "test_tuple"):
+                ex_list = self.test_tuple.dataset.data
+            elif hasattr(self, "valid_tuple"):
+                ex_list = self.valid_tuple.dataset.data
+            else:
+                ex_list = []
+
+            if len(ex_list) == 0:
+                raise RuntimeError("Keine Beispiele verfügbar, Bias-Init übersprungen")
+
+            freq = _compute_class_freq_from_list(ex_list, a2l, num_labels)
+
+            # Logit-Priors
+            eps = 1e-3
+            p = (freq + eps) / (freq.sum() + eps * num_labels)
+            prior_bias = np.log(p / (1.0 - p))
+            with torch.no_grad():
+                self.model.answer_head.bias.copy_(
+                    torch.tensor(prior_bias, dtype=self.model.answer_head.bias.dtype, device=self.model.answer_head.bias.device)
+                )
+            # Für pos_weight später speichern
+            self.class_freq = freq
+            print("[DBG] init answer_head.bias with class priors (from loaded dataset)")
+        except Exception as e:
+            print("[WARN] class prior init skipped:", repr(e))
         # --- Ende Bias-Init ---
 
 
