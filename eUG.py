@@ -365,7 +365,7 @@ class VQA:
 
         # Output Directory
         self.output = args.output
-        self.save_steps = args.save_steps
+        self.save_steps = args.save_steps if args.save_steps is not None else 0
         os.makedirs(self.output, exist_ok=True)
 
         # print logs
@@ -562,6 +562,12 @@ class VQA:
 
             print(f"[DEBUG] Epoche {epoch+1} abgeschlossen, Batches: {batch_count}")
 
+        # Immer den letzten Stand sichern
+        ckpt_path = os.path.join(args.output, "LAST.pth")
+        os.makedirs(args.output, exist_ok=True)
+        torch.save(self.model.state_dict(), ckpt_path)
+        print(f"[INFO] Saved LAST checkpoint to {ckpt_path}")
+
         # Am Ende: fehlende Labels gesammelt ausgeben
         if missing_labels_all:
             print(f"[DEBUG] Fehlende Labels im Mapping (gesamt): {sorted(list(missing_labels_all))}")
@@ -596,7 +602,7 @@ class VQA:
             global_step += 1
 
             # do eval
-            if self.save_steps > 0 and global_step % self.save_steps == 0:
+            if (self.save_steps or 0) > 0 and (global_step % self.save_steps) == 0:
                 log_str = f"\n\n{ctime()} || EVALUATION TIME"
                 log_str += f"\nEpoch-step {epoch}-{global_step}: Loss {t_loss/step_per_eval:.2f} | Task loss {tt_loss/step_per_eval:.2f} | Expl loss {te_loss/step_per_eval:.2f} | Train acc {evaluator.evaluate(quesid2ans)[0]:.2f}"
                 print_log(args, log_str)
