@@ -196,9 +196,6 @@ def preprocess_gpt2(
     inputs, token_type_ids_list, label_list = [], [], []
 
     for question, answer, rationale in zip(questions, answers, rationales):
-        print(f"[DEBUG] answer type: {type(answer)}, value: {answer}")
-        print(f"[DEBUG] rationale type: {type(rationale)}, value: {rationale}")
-
         uniter_extended = " ".join(
             [tokenizer.begin_img, (uniter_dim + 1) * "u ", tokenizer.end_img]
         )  # dummy placeholders

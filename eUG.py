@@ -210,9 +210,15 @@ class VQA:
         # Hidden-Dim aus Model ableiten (falls möglich), sonst fallback
         hidden = getattr(self.model, "hidden_size", None) or 768  # 1024 für UNITER-large
 
-        if not hasattr(self.model, "answer_head"):
-            self.model.answer_head = nn.Linear(hidden, num_labels)
+            
+        self.model.answer_head = nn.Linear(hidden, num_labels)
+        
+        # Head aufs gleiche Device wie das Modell
+        self.model.answer_head.to(self.device)
 
+        # Safety: Head-Parameter sicher trainierbar
+        for p in self.model.answer_head.parameters():
+            p.requires_grad = True
         print(f"[DBG] Answer head out_dim={num_labels}, hidden={hidden}")
 
 
@@ -360,6 +366,12 @@ class VQA:
                     num_warmup_steps=args.warmup_steps,
                     num_training_steps=t_total,
                 )
+
+            print("Optim-Paramgroups:")
+            head_params = list(self.model.answer_head.parameters())
+            for i, grp in enumerate(self.optim.param_groups):
+                cnt_head = sum(p is q for q in head_params for p in grp["params"])
+                print(f"  Group {i}: lr={grp['lr']}, #params={len(grp['params'])}, head_params_in_group={cnt_head}")
 
         self.grad_accum = args.grad_accum
 
