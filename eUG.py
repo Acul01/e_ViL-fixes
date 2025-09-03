@@ -500,13 +500,23 @@ class VQA:
             gen_model = self.model.decoder.model.to(self.device)
 
         first = next(iter(loader))
-        for k,v in first.items():
-            if any(s in k.lower() for s in ["feat","visual","img"]):
-                import torch
-                x = v[0] if isinstance(v,(list,tuple)) else v
-                x = x if torch.is_tensor(x) else torch.as_tensor(x)
-                print(f"[DBG] BATCH[{k}] shape={tuple(x.shape)} mean={float(x.float().mean())}")
-                break
+        print("[DBG] type(first):", type(first), "len:", len(first))
+
+        # Versuche, wie der Code später, zu entpacken:
+        try:
+            ques_id, feats, boxes, sent, label, expl, answers = first
+        except Exception as e:
+            print("[DBG] cannot unpack:", e, "| element types:", [type(x) for x in first])
+            raise
+
+        import torch
+
+        def _stat(x, name):
+            t = x if torch.is_tensor(x) else torch.as_tensor(x)
+            print(f"[DBG] {name} shape={tuple(t.shape)} mean={float(t.float().mean())}")
+
+        _stat(feats, "feats")
+        _stat(boxes, "boxes")
 
 
         for i, datum_tuple in enumerate(loader):
