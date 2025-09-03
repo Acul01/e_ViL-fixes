@@ -562,11 +562,11 @@ class VQA:
 
             print(f"[DEBUG] Epoche {epoch+1} abgeschlossen, Batches: {batch_count}")
 
-        # Immer den letzten Stand sichern
-        ckpt_path = os.path.join(args.output, "LAST.pth")
-        os.makedirs(args.output, exist_ok=True)
-        torch.save(self.model.state_dict(), ckpt_path)
-        print(f"[INFO] Saved LAST checkpoint to {ckpt_path}")
+            # Immer den letzten Stand sichern
+            ckpt_path = os.path.join(args.output, "LAST.pth")
+            os.makedirs(args.output, exist_ok=True)
+            torch.save(self.model.state_dict(), ckpt_path)
+            print(f"[INFO] Saved LAST checkpoint to {ckpt_path}")
 
         # Am Ende: fehlende Labels gesammelt ausgeben
         if missing_labels_all:
