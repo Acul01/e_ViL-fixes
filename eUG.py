@@ -436,7 +436,7 @@ class VQA:
                 else:
                     model_dict = dset.label2ans
 
-                logit, output, _, _, _ = self.model(
+                logit, expl_output, input_ids, token_type_ids, visual_repr = self.model(
                     feats.to(self.device),
                     boxes.to(self.device),
                     sent,
@@ -446,20 +446,46 @@ class VQA:
                     expl_gt,
                 )
 
+                # --- ERZWUNGENE Head-Logits: immer unseren Klassifikationskopf benutzen ---
+                rep = visual_repr
+                if rep is None and isinstance(expl_output, dict):
+                    rep = (expl_output.get("cls_feats")
+                        or expl_output.get("pooled_output")
+                        or expl_output.get("joint") or None)
+                if rep is None:
+                    raise RuntimeError("Kein Repräsentations-Tensor (visual/pooled) aus dem Forward erhalten.")
+
+                rep = rep if torch.is_tensor(rep) else torch.as_tensor(rep, device=self.device)
+
+                # Falls (B, N, H): über Regionen mitteln -> (B, H)
+                if rep.dim() == 3:
+                    rep = rep.mean(dim=1)
+                elif rep.dim() != 2:
+                    raise RuntimeError(f"Unerwartete rep-Shape: {tuple(rep.shape)}")
+
+                # -> Logits GARANTIERT aus unserem answer_head
+                logit = self.model.answer_head(rep)  # (B, num_labels)
+                assert logit.dim() == 2 and logit.size(-1) == self.model.answer_head.out_features
+                # --- Ende: erzwungene Head-Logits ---
+
                 print("[DBG-gradfn] logit.requires_grad:", logit.requires_grad, "grad_fn:", logit.grad_fn)
 
+                '''
                 if self.dtype == "vqax":
                     loss_multiplier = logit.size(1)
                 elif self.dtype == "vcr":
                     loss_multiplier = 4
                 else:
                     loss_multiplier = 1
+                '''
+
+                loss_multiplier = 1
 
                 if self.train_type == "all":
                     target = target.to(logit.device).to(logit.dtype)   # BCE -> float
 
                     task_loss = self.loss_func(logit, target)  
-                    expl_loss = output[0]
+                    expl_loss = expl_output[0]
                     # loss_weights = dwa(prev_losses, temp=args.temperature)
                     loss_weights = {"task": 1, "expl": 1}
                     # loss = loss_weights['task']*task_loss + loss_weights['expl']*expl_loss
@@ -478,15 +504,14 @@ class VQA:
                         prev_task, prev_expl = 0, 0
 
                 elif self.train_type == "bb":
-                    loss = (
-                        self.loss_func(logit, target.to(self.device)) * loss_multiplier
-                    )
+                    target = target.to(logit.device).to(logit.dtype)   # BCE -> float
+                    loss = self.loss_func(logit, target)
                     loss /= self.grad_accum
                     task_loss = float(loss)
                     expl_loss = 0
 
                 elif self.train_type == "expl":
-                    loss = output[0]
+                    loss = expl_output[0]
                     loss /= self.grad_accum
                     task_loss = 0
                     expl_loss = float(loss)
