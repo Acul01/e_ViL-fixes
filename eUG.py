@@ -446,6 +446,8 @@ class VQA:
                     expl_gt,
                 )
 
+                print("[DBG-gradfn] logit.requires_grad:", logit.requires_grad, "grad_fn:", logit.grad_fn)
+
                 if self.dtype == "vqax":
                     loss_multiplier = logit.size(1)
                 elif self.dtype == "vcr":
@@ -454,9 +456,9 @@ class VQA:
                     loss_multiplier = 1
 
                 if self.train_type == "all":
-                    task_loss = (
-                        self.loss_func(logit, target.to(self.device)) * loss_multiplier
-                    )
+                    target = target.to(logit.device).to(logit.dtype)   # BCE -> float
+
+                    task_loss = self.loss_func(logit, target)  
                     expl_loss = output[0]
                     # loss_weights = dwa(prev_losses, temp=args.temperature)
                     loss_weights = {"task": 1, "expl": 1}
@@ -490,6 +492,16 @@ class VQA:
                     expl_loss = float(loss)
 
                 loss.backward()
+
+                ###debug
+                g = getattr(self.model.answer_head.weight, "grad", None)
+                print("[DBG] loss:", float(loss.item()),
+                    "grad_norm(head):", (float(g.norm()) if g is not None else "None"))
+
+                self.optim.step()
+
+                with torch.no_grad():
+                    print("[DBG] head L2 after:", float(self.model.answer_head.weight.norm()))
 
                 # --- Debug-Block ---
                 with torch.no_grad():
