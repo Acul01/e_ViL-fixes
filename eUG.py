@@ -639,10 +639,31 @@ class VQA:
                 top1_idx = probs.argmax(dim=-1).tolist()
                 pred_txt = [ds_list[i] for i in top1_idx]   # <- **HIER das richtige Mapping**
 
+                # ---- QID Normalisierung: Typ von id2datum ableiten ----
+                id_keys = list(eval_tuple.evaluator.dataset.id2datum.keys())
+                key_type = int  # Fallback
+                if len(id_keys) > 0:
+                    key_type = type(id_keys[0])
+
+                def normalize_qid(q):
+                    # Torch/Numpy rauslösen
+                    if hasattr(q, "item"):
+                        try:
+                            q = q.item()
+                        except Exception:
+                            pass
+                    # in Zieltyp casten
+                    if key_type is int:
+                        try:
+                            return int(q)
+                        except Exception:
+                            return int(str(q))
+                    else:
+                        return str(q)
+                # ---- Ende Normalisierung ----
+
                 for qid, ans in zip(ques_id, pred_txt):
-                    if hasattr(qid, "item"):  # Torch/Numpy
-                        qid = qid.item()
-                    quesid2ans[str(qid)] = ans
+                    quesid2ans[normalize_qid(qid)] = ans
 
                 ####
 
