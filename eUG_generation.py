@@ -120,5 +120,6 @@ def generate_text(
             skip_special_tokens=True,
         )
         sample_texts.append(sample_text)
-
+        
+    print('[DBG-SAMPLE-TEXTS]: ', sample_texts)
     return sample_texts
