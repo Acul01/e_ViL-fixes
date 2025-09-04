@@ -744,6 +744,16 @@ class VQA:
             all_generated_explanations = []
             all_gt_expls = []
             tokenizer = VCRGpt2Tokenizer.from_pretrained("gpt2")
+            # Spezialtokens explizit hinzufügen (wie beim Training!)
+            special_tokens_dict = {
+                "additional_special_tokens": [
+                    "<|b_img|>", "<|e_img|>", "<|b_qn|>", "<|e_qn|>", "<|b_rtnl|>", "<|e_rtnl|>",
+                    "<|b_ans|>", "<|e_ans|>", "<|b_situ|>", "<|e_situ|>", "<|b_verb|>", "<|e_verb|>",
+                    "<|b_before|>", "<|e_before|>", "<|b_after|>", "<|e_after|>", "<|b_intent|>", "<|e_intent|>",
+                    "<|b_viscomet|>", "<|e_viscomet|>"
+                ] + [f"<|det{i}|>" for i in range(45)]
+            }
+            tokenizer.add_special_tokens(special_tokens_dict)
             gen_model = self.model.decoder.model.to(self.device)
 
         first = next(iter(loader))
