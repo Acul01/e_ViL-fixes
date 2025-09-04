@@ -336,22 +336,33 @@ class VQA:
                 for p in self.model.uniter.parameters():
                     p.requires_grad = False
 
-            # Head- & Basis-Parameter trennen
+            # --- Optimizer Parameterguppen: Encoder/UNITER, GPT-2, Answer-Head ---
             head_params = list(self.model.answer_head.parameters())
+            gpt2_params = list(self.model.decoder.parameters())
             base_params = [p for n, p in self.model.named_parameters()
-                        if p.requires_grad and not n.startswith("answer_head.")]
+                        if p.requires_grad
+                        and p not in head_params
+                        and p not in gpt2_params]
 
-            # Lernraten FEST setzen (nicht aus args übernehmen, um jede Seiteneffekte auszuschließen)
-            base_lr = 2e-5
-            head_lr = 1e-3
+            # --- Feste Lernraten (keine Abhängigkeit von args) ---
+            base_lr = 2e-5       # z. B. UNITER/Encoder
+            gpt2_lr = 5e-5       # GPT-2 etwas höher als Encoder
+            head_lr = 1e-3       # Klassifikationskopf deutlich höher
 
             param_groups = [
                 {"params": base_params, "lr": base_lr, "weight_decay": 1e-2},
-                {"params": head_params,  "lr": head_lr, "weight_decay": 0.0},
+                {"params": gpt2_params, "lr": gpt2_lr, "weight_decay": 1e-2},
+                {"params": head_params, "lr": head_lr, "weight_decay": 0.0},
             ]
 
             # --- Optimizer: PyTorch Adam (NICHT BertAdam, NICHT args.optimizer) ---
             self.optim = torch.optim.Adam(param_groups)
+
+            # (optional) Sanity-Check im Log:
+            num_base = sum(p.requires_grad for p in base_params)
+            num_gpt2 = sum(p.requires_grad for p in gpt2_params)
+            num_head = sum(p.requires_grad for p in head_params)
+            print(f"[optim] trainierbare Parameter  base={num_base}  gpt2={num_gpt2}  head={num_head}")
 
             # 1) Debug VOR Scheduler: sicherstellen, dass LRs korrekt sind
             print("Optim-Paramgroups (before scheduler):", flush=True)
@@ -492,21 +503,16 @@ class VQA:
                 loss_weights = {"task": 1.0, "expl": 1.0}
 
                 if self.train_type == "all":
-                    target = target.to(logit.device).to(logit.dtype)  # float32
-                    loss = self.loss_func(logit, target)              # KEINE weitere Skalierung
 
                     task_loss = self.loss_func(logit, target)  
                     expl_loss = expl_output[0]
 
-                    # zur vereinfachung nur einfachen loss, nicht gewichtet
-                    '''
                     # loss_weights = dwa(prev_losses, temp=args.temperature)
                     loss_weights = {"task": 1, "expl": 1}
                     # loss = loss_weights['task']*task_loss + loss_weights['expl']*expl_loss
                     loss = weighted_loss(
                         task_loss, expl_loss, loss_weights, args.classifier_weight
                     )
-                    '''
 
                     loss /= self.grad_accum
 
