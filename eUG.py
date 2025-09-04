@@ -346,7 +346,12 @@ class VQA:
             base_params = [
                 p for _, p in self.model.named_parameters()
                 if p.requires_grad and id(p) not in exclude_ids
-]
+            ]
+
+            # Speichere als Attribute für Zugriff in train()
+            self.base_params = base_params
+            self.gpt2_params = gpt2_params
+            self.head_params = head_params
             # --- Feste Lernraten (keine Abhängigkeit von args) ---
             base_lr = 2e-5       # z. B. UNITER/Encoder
             gpt2_lr = 5e-5       # GPT-2 etwas höher als Encoder
@@ -566,6 +571,13 @@ class VQA:
 
                 # Optimizer-Step
                 self.optim.step()
+
+                # Nach self.optim.step()
+                with torch.no_grad():
+                    base_norm = sum((p.grad.norm().item() if p.grad is not None else 0) for p in self.base_params)
+                    gpt2_norm = sum((p.grad.norm().item() if p.grad is not None else 0) for p in self.gpt2_params)
+                    head_norm = sum((p.grad.norm().item() if p.grad is not None else 0) for p in self.head_params)
+                    print(f"[BATCH-UPDATE] Grad-Norms: base={base_norm:.2e}  gpt2={gpt2_norm:.2e}  head={head_norm:.2e}")
 
                 # --- Debug nach step (einmal) ---
                 with torch.no_grad():
