@@ -507,6 +507,9 @@ class VQA:
 
                 if self.train_type == "all":
 
+                    logit = logit.to(self.device)
+                    target = target.to(self.device)
+
                     task_loss = self.loss_func(logit, target)  
                     expl_loss = expl_output[0]
 
