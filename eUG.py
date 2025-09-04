@@ -338,12 +338,15 @@ class VQA:
 
             # --- Optimizer Parameterguppen: Encoder/UNITER, GPT-2, Answer-Head ---
             head_params = list(self.model.answer_head.parameters())
-            gpt2_params = list(self.model.decoder.parameters())
-            base_params = [p for n, p in self.model.named_parameters()
-                        if p.requires_grad
-                        and p not in head_params
-                        and p not in gpt2_params]
+            gpt2_params  = list(self.model.decoder.parameters())
 
+            # Exclude-Set aus Objekt-IDs
+            exclude_ids = {id(p) for p in head_params} | {id(p) for p in gpt2_params}
+
+            base_params = [
+                p for _, p in self.model.named_parameters()
+                if p.requires_grad and id(p) not in exclude_ids
+]
             # --- Feste Lernraten (keine Abhängigkeit von args) ---
             base_lr = 2e-5       # z. B. UNITER/Encoder
             gpt2_lr = 5e-5       # GPT-2 etwas höher als Encoder
