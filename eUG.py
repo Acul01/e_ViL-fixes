@@ -754,7 +754,7 @@ class VQA:
                 ] + [f"<|det{i}|>" for i in range(45)]
             }
             tokenizer.add_special_tokens(special_tokens_dict)
-            gen_model = self.model.decoder.model.to(self.device)
+            gen_model = self.model.decoder.to(self.device)
 
         first = next(iter(loader))
         print("[DBG] type(first):", type(first), "len:", len(first))
