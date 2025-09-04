@@ -324,62 +324,6 @@ class VQA:
             else:
                 self.loss_func = nn.CrossEntropyLoss()
 
-            '''
-            # --- Scheduler-Parameter (MUSS vor dem Optimizer definiert sein) ---
-            batch_per_epoch = len(self.train_tuple.loader) / args.grad_accum
-            t_total = int(batch_per_epoch * args.epochs)
-
-            # ===== NEU: Parametergroups bauen =====
-            # (Optional) Encoder einfrieren – beschleunigt Head-Finetune:
-            freeze_encoder = True  # für schnellen sanity-run; ggf. auf False setzen
-            if freeze_encoder and hasattr(self.model, "uniter"):
-                for p in self.model.uniter.parameters():
-                    p.requires_grad = False
-
-            # Head- & Basis-Parameter trennen
-            head_params = list(self.model.answer_head.parameters())
-            base_params = [p for n, p in self.model.named_parameters()
-                        if p.requires_grad and not n.startswith("answer_head.")]
-
-            # höhere LR für den frisch initialisierten Head
-            head_lr = max(5 * args.lr, 5e-4)
-
-            param_groups = [
-                {"params": base_params, "lr": args.lr},
-                {"params": head_params, "lr": head_lr},
-            ]
-            # ===== ENDE Parametergroups =====
-
-            if "bert" in args.optim:
-                print("BertAdam Total Iters: %d" % t_total)
-                from src.optimization import BertAdam
-                # WICHTIG: keine globale lr mehr übergeben, Gruppen haben eigene lr
-
-                base_lr = args.lr
-                head_lr = max(5 * args.lr, 5e-4)   # z. B. 5x höher oder fix 1e-3
-
-                param_groups = [
-                    {"params": [p for n,p in self.model.named_parameters()
-                                if p.requires_grad and not n.startswith("answer_head.")],
-                    "lr": base_lr, "weight_decay": 1e-2},
-                    {"params": list(self.model.answer_head.parameters()),
-                    "lr": head_lr, "weight_decay": 0.0},
-]
-                self.optim = BertAdam(
-                    param_groups,
-                    warmup=0.1,
-                    t_total=t_total,
-                )
-            else:
-                # WICHTIG: auch hier param_groups statt model.parameters() und OHNE globale lr
-                self.optim = args.optimizer(param_groups)
-                self.scheduler = get_linear_schedule_with_warmup(
-                    self.optim,
-                    num_warmup_steps=args.warmup_steps,
-                    num_training_steps=t_total,
-                )
-            '''
-
             # alternativ opt debug
             # --- Scheduler-Parameter (MUSS vor dem Optimizer definiert sein) ---
             batch_per_epoch = len(self.train_tuple.loader) / args.grad_accum
@@ -418,14 +362,6 @@ class VQA:
 
             # --- WICHTIG: Scheduler testweise AUSSCHALTEN ---
             self.scheduler = None
-
-            # Falls du unbedingt testen willst, ob der Scheduler die LR auf 0 setzt,
-            # kannst du NACH diesem Print den Scheduler aktivieren und NOCHMAL drucken:
-            # from transformers import get_linear_schedule_with_warmup
-            # self.scheduler = get_linear_schedule_with_warmup(self.optim, num_warmup_steps=args.warmup_steps, num_training_steps=t_total)
-            # print("Optim-Paramgroups (after scheduler-creation, before any step):", flush=True)
-            # for i, grp in enumerate(self.optim.param_groups):
-            #     print(f"  Group {i}: lr={grp['lr']}", flush=True)
 
             # Debug zusätzlich in Datei schreiben
             import os
@@ -804,13 +740,8 @@ class VQA:
         _stat(feats, "feats")
         _stat(boxes, "boxes")
 
-
         for i, datum_tuple in enumerate(loader):
             ques_id, feats, boxes, sent, label, expl, answers = datum_tuple
-            # Print predictions and ground truth labels for comparison
-            print("[PREDICT] Batch", i)
-            print("[PREDICT] Vorhersagen (pred):", label)
-            print("[PREDICT] Groundtruth (gt):", answers)
 
             if args.gt_cond:
                 gt = label
@@ -1081,7 +1012,7 @@ class VQA:
                             ]
                         input_record["prediction"] = quesid2ans[qid]
                         input_record["gt"] = dset.id2datum[qid]["label"]
-                        print('INPUT RECORD:', input_record)
+                        print('INPUT RECORD:', input_record, '\n')
                         if self.dtype == "vcr":
                             input_record["img_id"] = dset.id2datum[qid]["raw_img_id"]
                             input_record["movie"] = dset.id2datum[qid]["movie"]
