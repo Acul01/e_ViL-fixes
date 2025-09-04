@@ -637,7 +637,8 @@ class VQA:
             nn.utils.clip_grad_norm_(self.model.parameters(), 5.0)
             self.optim.step()
             if args.optim != "bert":
-                self.scheduler.step()  # Update learning rate schedule
+                if self.scheduler is not None:
+                    self.scheduler.step()  # Update learning rate schedule
 
             with torch.no_grad():
                 # 2) L2-Norm des Gewichts nach dem Step (muss sich ändern!)
