@@ -41,9 +41,6 @@ def eval_nlp_scores(pred, gt, verbose=False):
     gts = {}
     res = {}
 
-    print("OUT: Vorhersagen (pred):", pred)
-    print("OUT: Labels (gt):", gt)
-
     for imgId in range(len(pred)):
         gts[imgId] = gt[imgId]
         res[imgId] = pred[imgId]
