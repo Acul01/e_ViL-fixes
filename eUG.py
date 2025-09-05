@@ -743,7 +743,7 @@ class VQA:
                 bert_metric = None
             all_generated_explanations = []
             all_gt_expls = []
-            tokenizer = VCRGpt2Tokenizer.from_pretrained("gpt2")
+            tokenizer = VCRGpt2Tokenizer.from_pretrained("data/vcrgpt2_tokenizer")
             # Spezialtokens explizit hinzufügen (wie beim Training!)
             special_tokens_dict = {
                 "additional_special_tokens": [
