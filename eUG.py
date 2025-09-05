@@ -766,8 +766,6 @@ class VQA:
             print("[DBG] cannot unpack:", e, "| element types:", [type(x) for x in first])
             raise
 
-        import torch
-
         def _stat(x, name):
             t = x if torch.is_tensor(x) else torch.as_tensor(x)
             print(f"[DBG] {name} shape={tuple(t.shape)} mean={float(t.float().mean())}")
@@ -960,6 +958,7 @@ class VQA:
                     generated_explanations = None
 
                     if input_ids.shape[0] != 0:  # if not all predictions were wrong
+                        print('[INPUT_IDs]: ', input_ids)
                         if get_gen_expl:
                             generated_explanations = generate_text(
                                 gen_model,
