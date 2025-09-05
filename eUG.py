@@ -959,6 +959,8 @@ class VQA:
 
                     if input_ids.shape[0] != 0:  # if not all predictions were wrong
                         print('[INPUT_IDs]: ', input_ids)
+                        print('[TOKEN_TYPE_IDs]: ', token_type_ids)
+                        print('[VISUAL_REPRESENTATIONS]: ', visual_representations)
                         if get_gen_expl:
                             generated_explanations = generate_text(
                                 gen_model,
